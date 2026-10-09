@@ -1,0 +1,11 @@
+*.ipynb
+*.env
+*.vscode
+*pyc
+.zed
+pyrightconfig.json
+__pycache__
+feast_monitoring
+.ipynb_checkpoints
+mlruns
+mlflow.db

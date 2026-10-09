@@ -1,0 +1,36 @@
+project: pm_25_regression
+provider: local
+entity_key_serialization_version: 3
+
+registry:
+  registry_type: sql
+  path: postgresql+psycopg://feast_pm_25:cdb1ac5109d278c152ac945bd1416ea5@localhost:5433/feast_pm_25
+  cache_ttl_seconds: 60
+
+offline_store:
+  type: duckdb
+
+online_store:
+  type: redis
+  redis_type: redis
+  connection_string: "localhost:6379,password=89XvJDoqZFVDg2CYRCqJIQ1G"
+
+mlflow:
+  enabled: true
+  tracking_uri: http://localhost:5000
+  ui_url: http://localhost:5000
+  auto_log: true
+  auto_log_entity_df: true
+  log_operations: true
+
+data_quality_monitoring:
+  auto_baseline: true
+
+openlineage:
+  enabled: true
+  transport_type: http
+  transport_url: http://localhost:3200
+  transport_endpoint: api/v1/lineage
+  namespace: pm_25_regression
+  emit_on_apply: true
+  emit_on_materialize: true
