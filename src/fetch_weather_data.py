@@ -4,7 +4,7 @@ from pathlib import Path
 import openmeteo_requests
 import pandas as pd
 from dotenv import load_dotenv
-from .fetch_city_data import fetch_lon_lat
+from fetch_city_data import fetch_lon_lat
 
 
 def fetch_open_meteo_df(
@@ -37,7 +37,7 @@ def fetch_open_meteo_df(
         )
         for i, name in enumerate(daily_features):
             daily = response.Daily()
-            response_df[name] = daily.Variables(i).ValuesAsNumpy() 
+            response_df[name] = daily.Variables(i).ValuesAsNumpy()
         response_df["created_at"] = response_df.date.copy()
         response_df = response_df.assign(
             country=country,
