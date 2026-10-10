@@ -9,3 +9,4 @@ feast_monitoring
 .ipynb_checkpoints
 mlruns
 mlflow.db
+.ruff_cache
