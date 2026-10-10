@@ -10,3 +10,4 @@ feast_monitoring
 mlruns
 mlflow.db
 .ruff_cache
+data/
