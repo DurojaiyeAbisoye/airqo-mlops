@@ -59,7 +59,6 @@ def fetch_hourly_sensor_data(
     )
 
     df.to_parquet(parquet_path, index=False)
-    print(df)
     return df
 
 
