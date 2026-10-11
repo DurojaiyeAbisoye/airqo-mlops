@@ -3,7 +3,6 @@ import argparse
 import pandas as pd
 from pathlib import Path
 from dotenv import load_dotenv
-from fetch_city_data import fetch_lon_lat
 
 env_path = Path(__file__).parent.parent / ".env"
 _ = load_dotenv(env_path, verbose=True)
@@ -14,9 +13,8 @@ def clean_df(df_path: str, save_df: bool = False) -> pd.DataFrame:
     country = os.environ.get("COUNTRY")
     city = os.environ.get("CITY")
     street = os.environ.get("STREET")
-    location = os.environ.get("LOCATION")
-
-    lon, lat = fetch_lon_lat(location)
+    lat = float(os.environ["LAT"])
+    lon = float(os.environ["LON"])
 
     df = pd.read_parquet(df_path)
     df["date"] = pd.to_datetime(df["date"])

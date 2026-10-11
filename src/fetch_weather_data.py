@@ -4,7 +4,6 @@ from pathlib import Path
 import openmeteo_requests
 import pandas as pd
 from dotenv import load_dotenv
-from fetch_city_data import fetch_lon_lat
 
 
 def fetch_open_meteo_df(
@@ -17,9 +16,8 @@ def fetch_open_meteo_df(
     country = os.environ.get("COUNTRY")
     city = os.environ.get("CITY")
     street = os.environ.get("STREET")
-    location = os.environ.get("LOCATION")
-
-    lon, lat = fetch_lon_lat(location)
+    lat = float(os.environ["LAT"])
+    lon = float(os.environ["LON"])
     open_meteo = openmeteo_requests.Client()
     params = {
         "start_date": start_date,
