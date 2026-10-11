@@ -8,22 +8,24 @@ from pprint import pprint
 import pandas as pd
 
 
-def get_pm25(sensor_url: str, 
-            sensor_api_key: str,
-            country: str,
-            city: str,
-            street: str,
-            lat: float,
-            lon: float):
+def get_pm25(
+    sensor_url: str,
+    sensor_api_key: str,
+    country: str,
+    city: str,
+    street: str,
+    lat: float,
+    lon: float,
+):
 
     url = f"{sensor_url}/?token={sensor_api_key}"
     response = requests.get(url)
     response_data = response.json()
-    pm25 = float(response_data['data']["iaqi"]["pm25"]["v"])
-    date = pd.to_datetime(response_data['data']["time"]["v"], unit="s", utc=True)
+    pm25 = float(response_data["data"]["iaqi"]["pm25"]["v"])
+    date = pd.to_datetime(response_data["data"]["time"]["v"], unit="s", utc=True)
 
     created_at = datetime.now(timezone.utc)
-    return pd.DataFrame(
+    df = pd.DataFrame(
         [
             {
                 "date": date,
@@ -37,6 +39,8 @@ def get_pm25(sensor_url: str,
             }
         ]
     )
+    return df
+
 
 def main() -> pd.DataFrame:
     env_path = Path(__file__).parent.parent / ".env"
@@ -44,7 +48,9 @@ def main() -> pd.DataFrame:
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--sensor-url", "--sensor_url", default=os.environ["AQICN_URL"])
-    parser.add_argument("--sensor-token", "--sensor_token", default=os.environ["AQICN_TOKEN"])
+    parser.add_argument(
+        "--sensor-token", "--sensor_token", default=os.environ["AQICN_TOKEN"]
+    )
     parser.add_argument("--country", default=os.environ["COUNTRY"])
     parser.add_argument("--city", default=os.environ["CITY"])
     parser.add_argument("--street", default=os.environ["STREET"])
@@ -62,6 +68,6 @@ def main() -> pd.DataFrame:
         lon=args.lon,
     )
 
-    
+
 if __name__ == "__main__":
     main()
