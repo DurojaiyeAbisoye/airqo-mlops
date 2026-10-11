@@ -4,7 +4,7 @@ from pathlib import Path
 import openmeteo_requests
 import pandas as pd
 from dotenv import load_dotenv
-
+from datetime import datetime, timezone
 
 def fetch_open_meteo_df(
     url: str,
@@ -36,8 +36,8 @@ def fetch_open_meteo_df(
         for i, name in enumerate(daily_features):
             daily = response.Daily()
             response_df[name] = daily.Variables(i).ValuesAsNumpy()
-        response_df["created_at"] = response_df.date.copy()
-        response_df = response_df.assign(
+            response_df = response_df.assign(
+            created_at=datetime.now(timezone.utc),
             country=country,
             city=city,
             street=street,

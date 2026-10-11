@@ -1,0 +1,61 @@
+name: fetch-weekly-weather-forecast-data
+
+on:
+  schedule:
+    - cron: "30 0 * * *"
+  workflow_dispatch:
+  push: 
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    name: fetch-weekly-weather-forecast-data
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SAVE_DIR: src/feature_repo/data
+      FILENAME: weather_forecast
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run script
+        env:
+          OPEN_METEO_FORECAST_URL: ${{ vars.OPEN_METEO_FORECAST_URL }}
+          COUNTRY: ${{ vars.COUNTRY }}
+          CITY: ${{ vars.CITY }}
+          STREET: ${{ vars.STREET }}
+          LAT: ${{ vars.LAT }}
+          LON: ${{ vars.LON }}
+          DAILY_FEATURES: temperature_2m_mean precipitation_sum wind_speed_10m_max wind_direction_10m_dominant
+        run: |
+          mkdir -p "$SAVE_DIR"
+          START_DATE=$(date -u +%F)
+          END_DATE=$(date -u -d "+6 days" +%F)
+          python src/fetch_weather_forecast.py \
+            --url "$OPEN_METEO_FORECAST_URL" \
+            --start_date "$START_DATE" \
+            --end_date "$END_DATE" \
+            --daily_features $DAILY_FEATURES \
+            --filename "$FILENAME" \
+            --save_path "$SAVE_DIR"
+
+      - name: Commit data if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A "$SAVE_DIR/$FILENAME.parquet"
+          git diff --cached --quiet && exit 0
+          git commit -m "data: forecast $(date -u +%FT%TZ)"
+          git pull --rebase
+          git push
