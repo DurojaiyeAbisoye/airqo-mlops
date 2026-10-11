@@ -1,4 +1,5 @@
 import os
+import argparse
 from pathlib import Path
 
 import pandas as pd
@@ -8,11 +9,15 @@ from fetch_sensor_data import get_pm25
 
 
 def fetch_hourly_sensor_data(
+    sensor_url: str,
+    sensor_token: str,
+    country: str,
+    city: str,
+    street: str,
+    lat: float,
+    lon: float,
     save_path: str | None = None,
 ) -> pd.DataFrame:
-
-    env_path = Path(__file__).resolve().parent.parent / ".env"
-    load_dotenv(env_path, verbose=True)
 
     if save_path is None:
         save_path = "src/feature_repo/data/daily_sensor_data.parquet"
@@ -38,13 +43,13 @@ def fetch_hourly_sensor_data(
         df = pd.DataFrame(columns=columns)
 
     hourly_df = get_pm25(
-        sensor_url=os.environ["AQICN_URL"],
-        sensor_api_key=os.environ["AQICN_TOKEN"],
-        country=os.environ["COUNTRY"],
-        city=os.environ["CITY"],
-        street=os.environ["STREET"],
-        lat=float(os.environ["LAT"]),
-        lon=float(os.environ["LON"]),
+        sensor_url=sensor_url,
+        sensor_api_key=sensor_token,
+        country=country,
+        city=city,
+        street=street,
+        lat=lat,
+        lon=lon,
     )
 
     df = (
@@ -58,5 +63,34 @@ def fetch_hourly_sensor_data(
     return df
 
 
+def main() -> pd.DataFrame:
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    load_dotenv(env_path, verbose=True)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--sensor-url", "--sensor_url", default=os.environ["AQICN_URL"])
+    parser.add_argument(
+        "--sensor-token", "--sensor_token", default=os.environ["AQICN_TOKEN"]
+    )
+    parser.add_argument("--country", default=os.environ["COUNTRY"])
+    parser.add_argument("--city", default=os.environ["CITY"])
+    parser.add_argument("--street", default=os.environ["STREET"])
+    parser.add_argument("--lat", type=float, default=os.environ["LAT"])
+    parser.add_argument("--lon", type=float, default=os.environ["LON"])
+    parser.add_argument("--save-path", "--save_path", default=None)
+    args = parser.parse_args()
+
+    return fetch_hourly_sensor_data(
+        sensor_url=args.sensor_url,
+        sensor_token=args.sensor_token,
+        country=args.country,
+        city=args.city,
+        street=args.street,
+        lat=args.lat,
+        lon=args.lon,
+        save_path=args.save_path,
+    )
+
+
 if __name__ == "__main__":
-    fetch_hourly_sensor_data()
+    main()

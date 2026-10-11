@@ -1,0 +1,60 @@
+name: fetch-hourly-sensor-data
+
+on:
+  schedule:
+    - cron:  "0 * * * *"
+  workflow_dispatch:
+  
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    name: fetch-hourly-sensor-data
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      
+      - name: Set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run script
+        env:
+          AQICN_URL: ${{ vars.AQICN_URL }}
+          AQICN_TOKEN: ${{ secrets.AQICN_TOKEN }}
+          COUNTRY: ${{ vars.COUNTRY }}
+          CITY: ${{ vars.CITY }}
+          STREET: ${{ vars.STREET }}
+          LAT: ${{ vars.LAT }}
+          LON: ${{ vars.LON }}
+          SAVE_PATH: ${{ vars.SAVE_PATH }}
+        run: |
+          python src/fetch_hourly_sensor_data.py \
+            --sensor-url "$AQICN_URL" \
+            --sensor-token "$AQICN_TOKEN" \
+            --country "$COUNTRY" \
+            --city "$CITY" \
+            --street "$STREET" \
+            --lat "$LAT" \
+            --lon "$LON" \
+            --save-path "$SAVE_PATH"
+      
+      - name: Commit data if changed
+        env:
+          SAVE_PATH: ${{ vars.SAVE_PATH }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A "$SAVE_PATH"
+          git diff --cached --quiet && exit 0
+          git commit -m "data: sensor $(date -u +%FT%TZ)"
+          git pull --rebase
+          git push
