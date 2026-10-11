@@ -18,13 +18,16 @@ def get_pm25(sensor_url: str,
 
     url = f"{sensor_url}/?token={sensor_api_key}"
     response = requests.get(url)
-    response_data = response.json()['data']
-    created_at = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+    response_data = response.json()
+    pm25 = float(response_data['data']["iaqi"]["pm25"]["v"])
+    date = pd.to_datetime(response_data['data']["time"]["v"], unit="s", utc=True)
+
+    created_at = datetime.now(timezone.utc)
     return pd.DataFrame(
         [
             {
-                "date": created_at,
-                "pm25": float(response_data["iaqi"]["pm25"]["v"]),
+                "date": date,
+                "pm25": pm25,
                 "created_at": created_at,
                 "country": country,
                 "city": city,

@@ -16,7 +16,7 @@ def clean_df(df_path: str, save_df: bool = False) -> pd.DataFrame:
     lat = float(os.environ["LAT"])
     lon = float(os.environ["LON"])
 
-    df = pd.read_parquet(df_path)
+    df = pd.read_csv(df_path)
     df["date"] = pd.to_datetime(df["date"])
     df = df.rename(columns={"median": "pm25"})[["date", "pm25"]]
     df["created_at"] = df.date.copy()
@@ -29,7 +29,7 @@ def clean_df(df_path: str, save_df: bool = False) -> pd.DataFrame:
     )
     if save_df:
         df.to_parquet(
-            "src/feature_repo/data/cleaned-air-quality-data.parquet", index=False
+            "src/feature_repo/data/cleaned_historical_sensor_data.parquet", index=False
         )
     return df
 
@@ -40,5 +40,4 @@ if __name__ == "__main__":
     _ = parser.add_argument("--df_path", type=str, help="Raw sensor df path")
     _ = parser.add_argument("--save_df", action="store_true", help="Save df")
     args = parser.parse_args()
-    print(args)
     _ = clean_df(args.df_path, args.save_df)  # pyright: ignore[reportAny]
