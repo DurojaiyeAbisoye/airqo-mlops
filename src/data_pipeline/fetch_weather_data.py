@@ -43,7 +43,7 @@ def fetch_open_meteo_df(
     response_df["date"] = pd.date_range(
         start=pd.to_datetime(daily.Time(), unit="s", utc=True),
         end=pd.to_datetime(daily.TimeEnd(), unit="s", utc=True),
-        freq=pd.Timedelta(seconds=daily.Interval()),
+        freq=pd.Timedelta(seconds=int(daily.Interval())),
         inclusive="left",
     )
     for i, name in enumerate(daily_features):
