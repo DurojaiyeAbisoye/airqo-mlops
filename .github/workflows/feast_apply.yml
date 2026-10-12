@@ -25,6 +25,6 @@ jobs:
         - name: Install dependencies
           run: pip install -r src/feature_repo/requirements.txt
 
-        - name: Run script
-          run: python src/feature_repo/features.py
+        - name: Run feast apply
+          run: cd src/feature_repo/ && feast apply
         

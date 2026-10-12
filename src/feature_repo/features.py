@@ -89,14 +89,3 @@ store = FeatureStore(
     repo_path=f"{REPO_ROOT}/src/feature_repo",
     fs_yaml_file=Path(f"{REPO_ROOT}/src/feature_repo/feature_store.yaml"),
 )
-
-
-if __name__ == "__main__":
-    store.apply(
-        [
-            *entities,
-            air_quality_feature_view,
-            weather_feature_view,
-            pm25_feature_service,
-        ]
-    )
