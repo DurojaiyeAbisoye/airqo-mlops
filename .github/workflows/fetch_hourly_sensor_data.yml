@@ -2,7 +2,7 @@ name: fetch-hourly-sensor-data
 
 on:
   schedule:
-    - cron:  "0 * * * *"
+    - cron:  "7,37,57 * * * *"
   workflow_dispatch:
   
 permissions:

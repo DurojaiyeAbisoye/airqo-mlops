@@ -54,7 +54,7 @@ def fetch_hourly_sensor_data(
 
     df = (
         pd.concat([df[columns], hourly_df[columns]], ignore_index=True)
-        .drop_duplicates(subset=["date"], keep="last")
+        .drop_duplicates(subset=["date"], keep="first")
         .reset_index(drop=True)
     )
     print(df)
