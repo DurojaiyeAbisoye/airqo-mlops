@@ -10,8 +10,7 @@ from feast import (
     ValueType,
 )
 from feast.data_format import ParquetFormat
-from feast.types import Float32
-
+from feast.types import Float32, Float64, String
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -46,7 +45,13 @@ air_quality_feature_view = FeatureView(
     name="air_quality_fv",
     source=air_quality_data_source,
     schema=[
-        Field(name="pm25", dtype=Float32),
+        Field(name="pm25", dtype=Float64),
+    ]
+    + [
+        Field(name="country", dtype=String),
+        Field(name="city", dtype=String),
+        Field(name="street", dtype=String),
+        Field(name="pm25", dtype=Float64),
     ],
     entities=entities,
     offline=True,
@@ -64,6 +69,12 @@ weather_feature_view = FeatureView(
             "wind_speed_10m_max",
             "wind_direction_10m_dominant",
         ]
+    ]
+    + [
+        Field(name="country", dtype=String),
+        Field(name="city", dtype=String),
+        Field(name="street", dtype=String),
+        Field(name="pm25", dtype=Float64),
     ],
     entities=entities,
     offline=True,
@@ -77,7 +88,8 @@ pm25_feature_service = FeatureService(
 )
 
 store = FeatureStore(
-    repo_path=f"{REPO_ROOT}/src/feature_repo", fs_yaml_file=Path(f"{REPO_ROOT}/src/feature_repo/feature_store.yaml")
+    repo_path=f"{REPO_ROOT}/src/feature_repo",
+    fs_yaml_file=Path(f"{REPO_ROOT}/src/feature_repo/feature_store.yaml"),
 )
 
 
