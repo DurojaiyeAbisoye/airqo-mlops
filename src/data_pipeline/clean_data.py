@@ -7,12 +7,8 @@ from dotenv import load_dotenv
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ENV_PATH = REPO_ROOT / ".env"
-OUTPUT_PATH = (
-    REPO_ROOT / "src/feature_repo/data/cleaned_historical_sensor_data.parquet"
-)
-DEFAULT_INPUT_PATH = (
-    REPO_ROOT / "src/feature_repo/data/raw_historical_sensor_data.csv"
-)
+OUTPUT_PATH = REPO_ROOT / "src/feature_repo/data/cleaned_historical_sensor_data.parquet"
+DEFAULT_INPUT_PATH = REPO_ROOT / "src/feature_repo/data/raw_historical_sensor_data.csv"
 
 
 def clean_df(df_path: str, save_df: bool = False) -> pd.DataFrame:

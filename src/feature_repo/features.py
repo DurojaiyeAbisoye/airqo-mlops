@@ -16,7 +16,7 @@ from feast.types import Float32
 feature_service_name = "pm25_regression"
 
 air_quality_data_source = FileSource(
-    path="feature_repo/data/cleaned-air-quality-data.parquet",
+    path="feature_repo/data/cleaned_historical_sensor_data.parquet",
     name="air-quality_data",
     timestamp_field="date",
     created_timestamp_column="created_at",
@@ -24,7 +24,7 @@ air_quality_data_source = FileSource(
 )
 
 weather_data_source = FileSource(
-    path="feature_repo/data/weather-data.parquet",
+    path="feature_repo/data/weather_historical.parquet",
     name="weather_data",
     timestamp_field="date",
     created_timestamp_column="created_at",
@@ -32,10 +32,9 @@ weather_data_source = FileSource(
 )
 
 
-air_quality_entities = weather_entities = [
+entities = [
     Entity(name="country", value_type=ValueType.STRING),
     Entity(name="city", value_type=ValueType.STRING),
-    Entity(name="state", value_type=ValueType.STRING),
     Entity(name="street", value_type=ValueType.STRING),
 ]
 
@@ -46,8 +45,7 @@ air_quality_feature_view = FeatureView(
     schema=[
         Field(name="pm25", dtype=Float32),
     ],
-    entities=air_quality_entities,
-    ttl=timedelta(days=7),
+    entities=entities,
     offline=True,
     enable_validation=True,
 )
@@ -64,8 +62,7 @@ weather_feature_view = FeatureView(
             "wind_direction_10m_dominant",
         ]
     ],
-    entities=weather_entities,
-    ttl=timedelta(days=7),
+    entities=entities,
     offline=True,
     enable_validation=True,
 )
@@ -84,7 +81,7 @@ store = FeatureStore(
 if __name__ == "__main__":
     store.apply(
         [
-            *air_quality_entities,
+            *entities,
             air_quality_feature_view,
             weather_feature_view,
             pm25_feature_service,

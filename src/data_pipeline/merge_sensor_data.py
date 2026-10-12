@@ -18,9 +18,7 @@ def merge_sensor_data() -> pd.DataFrame:
     daily_sensor_df = pd.read_parquet(daily_sensor_df_path)
     daily_sensor_df["day"] = daily_sensor_df["date"].dt.date
 
-    daily_sensor_df = daily_sensor_df[
-        daily_sensor_df["day"] == datetime.today().date()
-    ]
+    daily_sensor_df = daily_sensor_df[daily_sensor_df["day"] == datetime.today().date()]
 
     median_today = (
         daily_sensor_df.groupby("day")["pm25"]

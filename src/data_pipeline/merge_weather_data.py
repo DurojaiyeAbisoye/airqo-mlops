@@ -13,10 +13,9 @@ def merge_weather_data() -> pd.DataFrame:
     historical_weather_df = pd.read_parquet(historical_weather_df_path)
     daily_weather_df = pd.read_parquet(daily_weather_df_path)
 
-    df = (
-        pd.concat([historical_weather_df, daily_weather_df], ignore_index=True)
-        .drop_duplicates(subset=["date"])
-    )
+    df = pd.concat(
+        [historical_weather_df, daily_weather_df], ignore_index=True
+    ).drop_duplicates(subset=["date"])
     df.to_parquet(historical_weather_df_path)
     return df
 
