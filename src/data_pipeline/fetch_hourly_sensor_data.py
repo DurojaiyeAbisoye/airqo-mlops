@@ -57,10 +57,9 @@ def fetch_hourly_sensor_data(
         .drop_duplicates(subset=["date", "pm25"], keep="first")
         .reset_index(drop=True)
     )
-    print(df)
+    
     df.to_parquet(parquet_path, index=False)
-    return df
-
+    
 
 def main() -> pd.DataFrame:
     env_path = Path(__file__).resolve().parent.parent.parent / ".env"
