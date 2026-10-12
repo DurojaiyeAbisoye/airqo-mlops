@@ -6,14 +6,12 @@ on:
   workflow_dispatch:
   push:
 
-permissions:
-  contents: write
 
 jobs:
   fetch:
     name: feast-apply
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 5
     steps:
         - name: Checkout repo
           uses: actions/checkout@v4
@@ -27,18 +25,6 @@ jobs:
         - name: Install dependencies
           run: pip install -r src/feature_repo/requirements.txt
 
-        - name: Set up mlflow ui
-          run: mlflow ui
-
         - name: Run script
           run: python src/feature_repo/features.py
         
-        - name: Commit data if changed
-          run: |
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add -A src/feature_repo/feast_dbs/
-            git diff --cached --quiet && exit 0
-            git commit -m "feast apply $(date -u +%FT%TZ)"
-            git pull --rebase
-            git push

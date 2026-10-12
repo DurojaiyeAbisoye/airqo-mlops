@@ -12,3 +12,4 @@ mlflow.db
 .ruff_cache
 AIR_QUALITY_MLOPS_ROADMAP.md
 images/
+feast_dbs
