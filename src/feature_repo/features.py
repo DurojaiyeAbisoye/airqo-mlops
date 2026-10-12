@@ -1,4 +1,3 @@
-from datetime import timedelta
 from pathlib import Path
 
 from feast import (
@@ -13,10 +12,14 @@ from feast import (
 from feast.data_format import ParquetFormat
 from feast.types import Float32
 
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
 feature_service_name = "pm25_regression"
 
 air_quality_data_source = FileSource(
-    path="feature_repo/data/cleaned_historical_sensor_data.parquet",
+    path=f"{REPO_ROOT}/src/feature_repo/data/cleaned_historical_sensor_data.parquet",
     name="air-quality_data",
     timestamp_field="date",
     created_timestamp_column="created_at",
@@ -24,7 +27,7 @@ air_quality_data_source = FileSource(
 )
 
 weather_data_source = FileSource(
-    path="feature_repo/data/weather_historical.parquet",
+    path=f"{REPO_ROOT}/src/feature_repo/data/weather_historical.parquet",
     name="weather_data",
     timestamp_field="date",
     created_timestamp_column="created_at",
@@ -74,7 +77,7 @@ pm25_feature_service = FeatureService(
 )
 
 store = FeatureStore(
-    repo_path="feature_repo", fs_yaml_file=Path("feature_repo/feature_store.yaml")
+    repo_path=f"{REPO_ROOT}/src/feature_repo", fs_yaml_file=Path(f"{REPO_ROOT}/src/feature_repo/feature_store.yaml")
 )
 
 
