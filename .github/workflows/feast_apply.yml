@@ -1,0 +1,44 @@
+name: feast-apply
+
+on:
+  schedule:
+    - cron: '12 * * * *'
+  workflow_dispatch:
+  push:
+
+jobs:
+  fetch:
+    name: feast-apply
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+        - name: Checkout repo
+          uses: actions/checkout@v4
+
+        - name: Set up python
+          uses: actions/setup-python@v5
+          with: 
+              python-version: '3.12'
+              cache: pip
+
+        - name: Install dependencies
+          run: pip install -r requirements.txt
+
+        - name: Set up mlflow ui
+          run: mlflow ui
+
+        - name: Set up feast ui
+          run: feast ui
+
+        - name: Run script
+          run: python src/feature_repo/features.py
+        
+        - name: Commit data if changed
+          run: |
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .
+            git diff --cached --quiet && exit 0
+            git commit -m "feast apply $(date -u +%FT%TZ)"
+            git pull --rebase
+            git push

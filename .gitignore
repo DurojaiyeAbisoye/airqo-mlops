@@ -5,10 +5,8 @@
 .zed
 pyrightconfig.json
 __pycache__
-feast_monitoring
 .ipynb_checkpoints
 mlruns
-mlflow.db
 .ruff_cache
 AIR_QUALITY_MLOPS_ROADMAP.md
 images/
