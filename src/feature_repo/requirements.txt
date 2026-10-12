@@ -1,4 +1,4 @@
 pandas==2.3.3
 pyarrow==25.0.1
-feast==0.66.0
+feast[duckdb]==0.66.0
 psycopg==3.3.6
