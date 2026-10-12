@@ -37,30 +37,30 @@ def fetch_open_meteo_df(
     }
 
     response = open_meteo.weather_api(url=url, params=params)[0]
-    if response:
-        response_df = pd.DataFrame()
-        response_df["date"] = pd.date_range(
-            start=start_date, end=end_date, freq="1D", normalize=True, tz="UTC"
-        )
-        daily = response.Daily()
-        for i, name in enumerate(daily_features):
-            response_df[name] = daily.Variables(i).ValuesAsNumpy()
-        response_df = response_df.assign(
-            created_at=datetime.now(timezone.utc),
-            country=country,
-            city=city,
-            street=street,
-            lat=lat,
-            lon=lon,
-        )
-        return response_df
-    else:
-        raise ValueError("response is none! Check your parameters.")
+    daily = response.Daily()
 
+    response_df = pd.DataFrame()
+    response_df["date"] = pd.date_range(
+        start=pd.to_datetime(daily.Time(), unit="s", utc=True),
+        end=pd.to_datetime(daily.TimeEnd(), unit="s", utc=True),
+        freq=pd.Timedelta(seconds=daily.Interval()),
+        inclusive="left",
+    )
+    for i, name in enumerate(daily_features):
+        response_df[name] = daily.Variables(i).ValuesAsNumpy()
+
+    return response_df.assign(
+        created_at=datetime.now(timezone.utc),
+        country=country,
+        city=city,
+        street=street,
+        lat=lat,
+        lon=lon,
+    )
 
 def main():
 
-    env_path = Path(__file__).resolve().parent.parent / ".env"
+    env_path = Path(__file__).resolve().parent.parent.parent / ".env"
     _ = load_dotenv(env_path, verbose=True)
 
     today = datetime.now(timezone.utc).date()
@@ -89,19 +89,19 @@ def main():
         "--daily_features",
         type=str,
         nargs="+",
-        default=env("DAILY_FEATURES", "").split() or DEFAULT_DAILY_FEATURES,
+        default=DEFAULT_DAILY_FEATURES,
         help="list of daily features to fetch",
     )
     _ = parser.add_argument(
         "--filename",
         type=str,
-        default=env("FORECAST_FILENAME", "weather_forecast"),
+        default="weather_forecast",
         help="filename",
     )
     _ = parser.add_argument(
         "--save_path",
         type=str,
-        default=env("FORECAST_SAVE_DIR", "src/feature_repo/data"),
+        default=f"{env_path.parent}/src/feature_repo/data",
         help="folder to save into",
     )
 

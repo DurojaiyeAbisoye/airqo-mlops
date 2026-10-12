@@ -12,7 +12,7 @@ def fetch_lon_lat(location: str):
 
 if __name__ == "__main__":
 
-    env_path = Path(__file__).parent.parent / ".env"
+    env_path = Path(__file__).parent.parent.parent / ".env"
     load_dotenv(env_path, verbose=True)
 
     location = os.getenv("LOCATION")

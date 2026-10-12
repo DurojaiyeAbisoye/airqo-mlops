@@ -36,16 +36,14 @@ jobs:
           STREET: ${{ vars.STREET }}
           LAT: ${{ vars.LAT }}
           LON: ${{ vars.LON }}
-          DAILY_FEATURES: temperature_2m_mean precipitation_sum wind_speed_10m_max wind_direction_10m_dominant
         run: |
           mkdir -p "$SAVE_DIR"
           START_DATE=$(date -u +%F)
           END_DATE=$(date -u -d "+6 days" +%F)
-          python src/fetch_weather_forecast.py \
+          python src/data_pipeline/fetch_weather_data.py \
             --url "$OPEN_METEO_FORECAST_URL" \
             --start_date "$START_DATE" \
             --end_date "$END_DATE" \
-            --daily_features $DAILY_FEATURES \
             --filename "$FILENAME" \
             --save_path "$SAVE_DIR"
 

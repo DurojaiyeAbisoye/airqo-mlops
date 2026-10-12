@@ -54,7 +54,7 @@ def fetch_hourly_sensor_data(
 
     df = (
         pd.concat([df[columns], hourly_df[columns]], ignore_index=True)
-        .drop_duplicates(subset=["date"], keep="first")
+        .drop_duplicates(subset=["date", "pm25"], keep="first")
         .reset_index(drop=True)
     )
     print(df)
@@ -63,7 +63,7 @@ def fetch_hourly_sensor_data(
 
 
 def main() -> pd.DataFrame:
-    env_path = Path(__file__).resolve().parent.parent / ".env"
+    env_path = Path(__file__).resolve().parent.parent.parent / ".env"
     load_dotenv(env_path, verbose=True)
 
     parser = argparse.ArgumentParser()
@@ -76,7 +76,11 @@ def main() -> pd.DataFrame:
     parser.add_argument("--street", default=os.environ["STREET"])
     parser.add_argument("--lat", type=float, default=os.environ["LAT"])
     parser.add_argument("--lon", type=float, default=os.environ["LON"])
-    parser.add_argument("--save-path", "--save_path", default=None)
+    parser.add_argument(
+        "--save-path",
+        "--save_path",
+        default=f"{env_path.parent}/src/feature_repo/data/daily_sensor_data.parquet",
+    )
     args = parser.parse_args()
 
     return fetch_hourly_sensor_data(

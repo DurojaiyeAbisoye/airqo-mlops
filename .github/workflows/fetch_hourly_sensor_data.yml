@@ -37,7 +37,7 @@ jobs:
           LON: ${{ vars.LON }}
           SAVE_PATH: ${{ vars.SAVE_PATH }}
         run: |
-          python src/fetch_hourly_sensor_data.py \
+          python src/data_pipeline/fetch_hourly_sensor_data.py \
             --sensor-url "$AQICN_URL" \
             --sensor-token "$AQICN_TOKEN" \
             --country "$COUNTRY" \

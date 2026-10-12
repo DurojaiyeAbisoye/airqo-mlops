@@ -4,7 +4,8 @@ import pandas as pd
 from pathlib import Path
 from dotenv import load_dotenv
 
-env_path = Path(__file__).parent.parent / ".env"
+env_path = Path(__file__).parent.parent.parent / ".env"
+print(env_path)
 _ = load_dotenv(env_path, verbose=True)
 
 
@@ -29,7 +30,7 @@ def clean_df(df_path: str, save_df: bool = False) -> pd.DataFrame:
     )
     if save_df:
         df.to_parquet(
-            "src/feature_repo/data/cleaned_historical_sensor_data.parquet", index=False
+            f"{env_path.parent}/src/feature_repo/data/cleaned_historical_sensor_data.parquet", index=False
         )
     return df
 
@@ -37,7 +38,7 @@ def clean_df(df_path: str, save_df: bool = False) -> pd.DataFrame:
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    _ = parser.add_argument("--df_path", type=str, help="Raw sensor df path")
+    _ = parser.add_argument("--df_path", type=str, help="Raw sensor df path", default=f'{env_path.parent}/src/feature_repo/data/raw_historical_sensor_data.csv')
     _ = parser.add_argument("--save_df", action="store_true", help="Save df")
     args = parser.parse_args()
-    _ = clean_df(args.df_path, args.save_df)  # pyright: ignore[reportAny]
+    _ = clean_df(args.df_path, args.save_df) 
