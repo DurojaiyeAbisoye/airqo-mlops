@@ -33,26 +33,31 @@ weather_data_source = FileSource(
     file_format=ParquetFormat(),
 )
 
+country_entity = Entity(
+    name="country",
+    join_keys=["country"],
+    value_type=ValueType.STRING,
+)
 
-entities = [
-    Entity(name="country", value_type=ValueType.STRING),
-    Entity(name="city", value_type=ValueType.STRING),
-    Entity(name="street", value_type=ValueType.STRING),
-]
+city_entity = Entity(
+    name="city",
+    join_keys=["city"],
+    value_type=ValueType.STRING,
+)
 
+street_entity = Entity(
+    name="street",
+    join_keys=["street"],
+    value_type=ValueType.STRING,
+)
 
 air_quality_feature_view = FeatureView(
     name="air_quality_fv",
     source=air_quality_data_source,
     schema=[
         Field(name="pm25", dtype=Float64),
-    ]
-    + [
-        Field(name="country", dtype=String),
-        Field(name="city", dtype=String),
-        Field(name="street", dtype=String),
     ],
-    entities=entities,
+    entities=[country_entity, city_entity, street_entity],
     offline=True,
     enable_validation=True,
 )
@@ -68,13 +73,8 @@ weather_feature_view = FeatureView(
             "wind_speed_10m_max",
             "wind_direction_10m_dominant",
         ]
-    ]
-    + [
-        Field(name="country", dtype=String),
-        Field(name="city", dtype=String),
-        Field(name="street", dtype=String),
     ],
-    entities=entities,
+    entities=[country_entity, city_entity, street_entity],
     offline=True,
     enable_validation=True,
 )
