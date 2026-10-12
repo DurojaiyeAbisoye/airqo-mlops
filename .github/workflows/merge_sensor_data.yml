@@ -1,0 +1,46 @@
+name: merge-sensor-data
+
+on:
+  schedule:
+    - cron: "57 23 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  merge:
+    name: merge-sensor-data
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Merge sensor data
+        env:
+          COUNTRY: ${{ vars.COUNTRY }}
+          CITY: ${{ vars.CITY }}
+          STREET: ${{ vars.STREET }}
+          LAT: ${{ vars.LAT }}
+          LON: ${{ vars.LON }}
+        run: python src/data_pipeline/merge_sensor_data.py
+
+      - name: Commit data if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/feature_repo/data/cleaned_historical_sensor_data.parquet
+          git diff --cached --quiet && exit 0
+          git commit -m "data: merge sensor $(date -u +%FT%TZ)"
+          git pull --rebase
+          git push

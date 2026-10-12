@@ -1,16 +1,21 @@
-import os
 import argparse
-import pandas as pd
+import os
 from pathlib import Path
+
+import pandas as pd
 from dotenv import load_dotenv
 
-env_path = Path(__file__).parent.parent.parent / ".env"
-print(env_path)
-_ = load_dotenv(env_path, verbose=True)
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ENV_PATH = REPO_ROOT / ".env"
+OUTPUT_PATH = (
+    REPO_ROOT / "src/feature_repo/data/cleaned_historical_sensor_data.parquet"
+)
+DEFAULT_INPUT_PATH = (
+    REPO_ROOT / "src/feature_repo/data/raw_historical_sensor_data.csv"
+)
 
 
 def clean_df(df_path: str, save_df: bool = False) -> pd.DataFrame:
-
     country = os.environ.get("COUNTRY")
     city = os.environ.get("CITY")
     street = os.environ.get("STREET")
@@ -20,7 +25,7 @@ def clean_df(df_path: str, save_df: bool = False) -> pd.DataFrame:
     df = pd.read_csv(df_path)
     df["date"] = pd.to_datetime(df["date"])
     df = df.rename(columns={"median": "pm25"})[["date", "pm25"]]
-    df["created_at"] = df.date.copy()
+    df["created_at"] = df["date"]
     df = df.assign(
         country=country,
         city=city,
@@ -29,16 +34,24 @@ def clean_df(df_path: str, save_df: bool = False) -> pd.DataFrame:
         lon=lon,
     )
     if save_df:
-        df.to_parquet(
-            f"{env_path.parent}/src/feature_repo/data/cleaned_historical_sensor_data.parquet", index=False
-        )
+        df.to_parquet(OUTPUT_PATH, index=False)
     return df
 
 
-if __name__ == "__main__":
+def main() -> None:
+    load_dotenv(ENV_PATH, verbose=True)
 
     parser = argparse.ArgumentParser()
-    _ = parser.add_argument("--df_path", type=str, help="Raw sensor df path", default=f'{env_path.parent}/src/feature_repo/data/raw_historical_sensor_data.csv')
-    _ = parser.add_argument("--save_df", action="store_true", help="Save df")
+    parser.add_argument(
+        "--df_path",
+        type=str,
+        help="Raw sensor df path",
+        default=str(DEFAULT_INPUT_PATH),
+    )
+    parser.add_argument("--save_df", action="store_true", help="Save df")
     args = parser.parse_args()
-    _ = clean_df(args.df_path, args.save_df) 
+    clean_df(args.df_path, args.save_df)
+
+
+if __name__ == "__main__":
+    main()

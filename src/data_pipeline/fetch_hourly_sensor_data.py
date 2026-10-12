@@ -1,11 +1,14 @@
-import os
 import argparse
+import os
 from pathlib import Path
 
 import pandas as pd
 from dotenv import load_dotenv
 
 from fetch_sensor_data import get_pm25
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ENV_PATH = REPO_ROOT / ".env"
 
 
 def fetch_hourly_sensor_data(
@@ -17,10 +20,9 @@ def fetch_hourly_sensor_data(
     lat: float,
     lon: float,
     save_path: str | None = None,
-) -> pd.DataFrame:
-
+) -> None:
     if save_path is None:
-        save_path = "src/feature_repo/data/daily_sensor_data.parquet"
+        save_path = str(REPO_ROOT / "src/feature_repo/data/daily_sensor_data.parquet")
 
     parquet_path = Path(save_path)
     parquet_path.parent.mkdir(parents=True, exist_ok=True)
@@ -57,13 +59,11 @@ def fetch_hourly_sensor_data(
         .drop_duplicates(subset=["date", "pm25"], keep="first")
         .reset_index(drop=True)
     )
-    
     df.to_parquet(parquet_path, index=False)
-    
 
-def main() -> pd.DataFrame:
-    env_path = Path(__file__).resolve().parent.parent.parent / ".env"
-    load_dotenv(env_path, verbose=True)
+
+def main() -> None:
+    load_dotenv(ENV_PATH, verbose=True)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--sensor-url", "--sensor_url", default=os.environ["AQICN_URL"])
@@ -78,11 +78,11 @@ def main() -> pd.DataFrame:
     parser.add_argument(
         "--save-path",
         "--save_path",
-        default=f"{env_path.parent}/src/feature_repo/data/daily_sensor_data.parquet",
+        default=str(REPO_ROOT / "src/feature_repo/data/daily_sensor_data.parquet"),
     )
     args = parser.parse_args()
 
-    return fetch_hourly_sensor_data(
+    fetch_hourly_sensor_data(
         sensor_url=args.sensor_url,
         sensor_token=args.sensor_token,
         country=args.country,

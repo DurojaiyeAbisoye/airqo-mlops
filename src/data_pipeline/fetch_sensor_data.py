@@ -1,11 +1,14 @@
-import os
 import argparse
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+
+import pandas as pd
 import requests
 from dotenv import load_dotenv
-from pathlib import Path
-from datetime import datetime, timezone
-from pprint import pprint
-import pandas as pd
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ENV_PATH = REPO_ROOT / ".env"
 
 
 def get_pm25(
@@ -16,8 +19,7 @@ def get_pm25(
     street: str,
     lat: float,
     lon: float,
-):
-
+) -> pd.DataFrame:
     url = f"{sensor_url}/?token={sensor_api_key}"
     response = requests.get(url)
     response_data = response.json()
@@ -43,8 +45,7 @@ def get_pm25(
 
 
 def main() -> pd.DataFrame:
-    env_path = Path(__file__).parent.parent.parent / ".env"
-    load_dotenv(env_path, verbose=True)
+    load_dotenv(ENV_PATH, verbose=True)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--sensor-url", "--sensor_url", default=os.environ["AQICN_URL"])
