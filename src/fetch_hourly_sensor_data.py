@@ -57,7 +57,7 @@ def fetch_hourly_sensor_data(
         .drop_duplicates(subset=["date"], keep="last")
         .reset_index(drop=True)
     )
-
+    print(df)
     df.to_parquet(parquet_path, index=False)
     return df
 
