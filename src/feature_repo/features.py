@@ -10,7 +10,7 @@ from feast import (
     ValueType,
 )
 from feast.data_format import ParquetFormat
-from feast.types import Float32, Float64, String
+from feast.types import Float32, Float64
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
