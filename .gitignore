@@ -13,3 +13,4 @@ mlflow.db
 AIR_QUALITY_MLOPS_ROADMAP.md
 images/
 feast_dbs
+mlartifacts

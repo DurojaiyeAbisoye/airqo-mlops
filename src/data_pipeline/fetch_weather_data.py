@@ -17,6 +17,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 ENV_PATH = REPO_ROOT / ".env"
 
 
+# python src/data_pipeline/fetch_weather_data.py --url "https://archive-api.open-meteo.com/v1/archive" --start_date '2026-01-01' --end_date '2026-10-11' --filename 'weather_historical'
+
+
 def fetch_open_meteo_df(
     url: str,
     start_date: str,
@@ -56,7 +59,7 @@ def fetch_open_meteo_df(
         response_df[name] = variable.ValuesAsNumpy()
 
     return response_df.assign(
-        created_at=datetime.now(timezone.utc),
+        created_at=response_df["date"],
         country=country,
         city=city,
         street=street,
