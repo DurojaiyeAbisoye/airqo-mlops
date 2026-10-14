@@ -10,7 +10,6 @@ from sklearn.ensemble import HistGradientBoostingRegressor, RandomForestRegresso
 from sklearn.metrics import r2_score, root_mean_squared_error
 from xgboost import XGBRegressor
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FEATURE_REPO = REPO_ROOT / "src/feature_repo"
 FEATURE_SERVICE_NAME = "pm25_regression"

@@ -46,9 +46,7 @@ def create_hindcast_df(store: FeatureStore) -> pd.DataFrame:
         PREDICTIONS_PATH,
         columns=["date", "predicted_pm25", "days_before_forecast_day"],
     )
-    predictions_df = monitoring_df[
-        monitoring_df["days_before_forecast_day"] == 1
-    ]
+    predictions_df = monitoring_df[monitoring_df["days_before_forecast_day"] == 1]
     outcome_df = air_quality_df[["event_timestamp", "pm25"]].rename(
         columns={"event_timestamp": "date"}
     )

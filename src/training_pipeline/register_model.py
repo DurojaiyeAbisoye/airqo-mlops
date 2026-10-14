@@ -26,9 +26,7 @@ def find_best_logged_model(store: FeatureStore) -> LoggedModel:
     mlflow_client = feast.mlflow.MlflowClient(store.mlflow._tracking_uri)
     experiment_info = feast.mlflow.get_experiment_by_name(store.project)
     if experiment_info is None:
-        raise RuntimeError(
-            f"MLflow experiment {store.project!r} does not exist."
-        )
+        raise RuntimeError(f"MLflow experiment {store.project!r} does not exist.")
 
     logged_models = mlflow_client.search_logged_models(
         experiment_ids=[experiment_info.experiment_id],
