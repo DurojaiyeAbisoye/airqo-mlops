@@ -2,4 +2,5 @@ pandas==2.3.3
 pyarrow==25.0.1
 requests==2.34.2
 python-dotenv==1.2.4
+catboost==1.2.10
 openmeteo_requests==1.7.5
