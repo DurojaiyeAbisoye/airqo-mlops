@@ -11,6 +11,6 @@ mlruns
 mlflow.db
 .ruff_cache
 AIR_QUALITY_MLOPS_ROADMAP.md
-images/
+images/system_plots
 feast_dbs
 mlartifacts

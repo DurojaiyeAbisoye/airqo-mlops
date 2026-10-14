@@ -13,6 +13,7 @@ from pathlib import Path
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
+from util import plot_air_quality_forecast
 
 pd.set_option("display.max_columns", None)
 
@@ -96,8 +97,25 @@ with store.mlflow.start_run("inference"):
         days_before_forecast_day=range(1, len(batch_inference_df) + 1),
     )
 
-    save_path = f"{REPO_ROOT}/src/feature_repo/data/batch_predictions.parquet"
-    if Path(save_path).exists():
-        store.write_to_offline_store("monitoring_fv", df=batch_inference_df)
+    plot_air_quality_forecast(
+        country=country,
+        city=city,
+        street=street,
+        df=batch_inference_df,
+        file_path=f"{REPO_ROOT}/images/plots/forecast.png",
+    )
+    save_path = Path(f"{REPO_ROOT}/src/feature_repo/data/batch_predictions.parquet")
+    if save_path.exists():
+        KEYS = ["country", "city", "street", "date", "days_before_forecast_day"]
+        batch_inference_df = (
+            pd.concat(
+                [pd.read_parquet(save_path), batch_inference_df], ignore_index=True
+            ).drop_duplicates(subset=KEYS, keep="last")
+        ).reset_index(drop=True)
+
+        tmp = save_path.with_suffix(".tmp")
+        batch_inference_df.to_parquet(tmp)
+        tmp.replace(save_path)
+    #     store.write_to_offline_store("monitoring_fv", df=batch_inference_df)
     else:
         batch_inference_df.to_parquet(save_path)

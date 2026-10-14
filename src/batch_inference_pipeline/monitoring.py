@@ -1,14 +1,25 @@
+import os
 import feast.mlflow
 from feast import FeatureStore
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 import pandas as pd
+from util import plot_air_quality_forecast
+from dotenv import load_dotenv
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+ENV_PATH = REPO_ROOT / ".env"
+
+load_dotenv(ENV_PATH, verbose=True)
 store = FeatureStore(
     repo_path=f"{REPO_ROOT}/src/feature_repo/",
     fs_yaml_file=Path(f"{REPO_ROOT}/src/feature_repo/feature_store.yaml"),
 )
+
+country = os.environ.get("COUNTRY")
+city = os.environ.get("CITY")
+street = os.environ.get("STREET")
+
 
 feast.mlflow.init(store=store)
 
@@ -32,15 +43,22 @@ air_quality_df = (
 
 monitoring_df = pd.read_parquet(
     f"{REPO_ROOT}/src/feature_repo/data/batch_predictions.parquet",
-    columns=["date", "predicted_pm25", 'days_before_forecast_day'],
+    columns=["date", "predicted_pm25", "days_before_forecast_day"],
 )
 preds_df = monitoring_df[monitoring_df.days_before_forecast_day == 1]
 outcome_df = air_quality_df[["event_timestamp", "pm25"]].rename(
     columns={"event_timestamp": "date"}
 )
 
-print(preds_df)
-print(outcome_df)
 
-hindcast_df = pd.merge(preds_df, outcome_df, on='date').sort_values('date')
-print(hindcast_df)
+hindcast_df = pd.merge(preds_df, outcome_df, on="date").sort_values("date")
+
+if not hindcast_df.empty:
+    plot_air_quality_forecast(
+        city=city,
+        street=street,
+        country=country,
+        df=hindcast_df,
+        file_path=f"{REPO_ROOT}/images/plots/hindcast.png",
+        hindcast=True,
+    )
