@@ -1,16 +1,21 @@
-import pandas as pd
+from types import ModuleType
+
 import matplotlib.pyplot as plt
+import pandas as pd
 from matplotlib.patches import Patch
 from matplotlib.ticker import MultipleLocator, ScalarFormatter
 
 
 def plot_air_quality_forecast(
-    country: str, city: str, street: str, df: pd.DataFrame, file_path: str, hindcast=False
-):
-    fig, ax = plt.subplots(figsize=(10, 6))
-
+    country: str | None,
+    city: str | None,
+    street: str | None,
+    df: pd.DataFrame,
+    file_path: str,
+    hindcast: bool = False,
+) -> ModuleType:
+    _, ax = plt.subplots(figsize=(10, 6))
     day = pd.to_datetime(df["date"]).dt.date
-    # Plot each column separately in matplotlib
     ax.plot(
         day,
         df["predicted_pm25"],
@@ -22,13 +27,11 @@ def plot_air_quality_forecast(
         markerfacecolor="blue",
     )
 
-    # Set the y-axis to a logarithmic scale
     ax.set_yscale("log")
     ax.set_yticks([0, 10, 25, 50, 100, 250, 500])
     ax.get_yaxis().set_major_formatter(ScalarFormatter())
     ax.set_ylim(bottom=1)
 
-    # Set the labels and title
     ax.set_xlabel("Date")
     ax.set_title(f"PM2.5 Predicted (Logarithmic Scale) for {country} {city}, {street}")
     ax.set_ylabel("PM2.5")
@@ -46,7 +49,6 @@ def plot_air_quality_forecast(
     for color, (start, end) in zip(colors, ranges):
         ax.axhspan(start, end, color=color, alpha=0.3)
 
-    # Add a legend for the different Air Quality Categories
     patches = [
         Patch(color=colors[i], label=f"{labels[i]}: {ranges[i][0]}-{ranges[i][1]}")
         for i in range(len(colors))
@@ -58,14 +60,13 @@ def plot_air_quality_forecast(
         fontsize="x-small",
     )
 
-    # Aim for ~10 annotated values on x-axis, will work for both forecasts ans hindcasts
     if len(df.index) > 11:
         every_x_tick = len(df.index) / 10
         ax.xaxis.set_major_locator(MultipleLocator(every_x_tick))
 
     plt.xticks(rotation=45)
 
-    if hindcast == True:
+    if hindcast:
         ax.plot(
             day,
             df["pm25"],
@@ -76,11 +77,9 @@ def plot_air_quality_forecast(
             markersize=5,
             markerfacecolor="grey",
         )
-        legend2 = ax.legend(loc="upper left", fontsize="x-small")
+        ax.legend(loc="upper left", fontsize="x-small")
         ax.add_artist(legend1)
 
-    # Ensure everything is laid out neatly
     plt.tight_layout()
-    # # Save the figure, overwriting any existing file with the same name
     plt.savefig(file_path)
     return plt
