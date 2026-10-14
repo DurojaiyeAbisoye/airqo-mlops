@@ -30,22 +30,27 @@ store = FeatureStore(
 
 feast.mlflow.init(store=store)
 
-mlflow_client = feast.mlflow.MlflowClient(store.mlflow._tracking_uri)
-feast.mlflow.set_tracking_uri(store.mlflow._tracking_uri)
 
-model_version = mlflow_client.get_model_version_by_alias(
-    name=MODEL_NAME, alias="champion"
-)
 
-model_uri = mlflow_client.get_model_version_download_uri(
-    name=MODEL_NAME, version=model_version.version
-)
-model = store.mlflow.load_model(model_uri)
-fs_name = store.mlflow.resolve_features(
-    f"models:/{MODEL_NAME}/{model_version.aliases[0]}"
-)
+feast.mlflow.autolog()
 
 with store.mlflow.start_run("inference"):
+
+    mlflow_client = feast.mlflow.MlflowClient(store.mlflow._tracking_uri)
+    feast.mlflow.set_tracking_uri(store.mlflow._tracking_uri)
+
+    model_version = mlflow_client.get_model_version_by_alias(
+        name=MODEL_NAME, alias="champion"
+    )
+
+    model_uri = mlflow_client.get_model_version_download_uri(
+        name=MODEL_NAME, version=model_version.version
+    )
+    model = store.mlflow.load_model(model_uri)
+    fs_name = store.mlflow.resolve_features(
+        f"models:/{MODEL_NAME}/{model_version.aliases[0]}"
+    )
+
     inference_entity_df = pd.DataFrame()
     start_date = datetime.now(tz=timezone.utc).date()
     end_date = start_date + timedelta(days=6)
