@@ -87,7 +87,7 @@ with store.mlflow.start_run("inference"):
         columns=["city", "country", "street", "event_timestamp", "pm25"]
     )
 
-    batch_inference_df["pm25"] = model.predict(batch_inference_df)
+    batch_inference_df["predicted_pm25"] = model.predict(batch_inference_df)
     batch_inference_df["date"] = inference_entity_df["event_timestamp"]
     batch_inference_df = batch_inference_df.assign(
         country=country,
@@ -96,7 +96,7 @@ with store.mlflow.start_run("inference"):
         days_before_forecast_day=range(1, len(batch_inference_df) + 1),
     )
 
-    save_path = f"{REPO_ROOT}/src/feature_repo/data/batch_monitoring.parquet"
+    save_path = f"{REPO_ROOT}/src/feature_repo/data/batch_predictions.parquet"
     if Path(save_path).exists():
         store.write_to_offline_store("monitoring_fv", df=batch_inference_df)
     else:

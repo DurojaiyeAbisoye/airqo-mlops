@@ -30,4 +30,17 @@ air_quality_df = (
     .reset_index(drop=True)
 )
 
-print(air_quality_df)
+monitoring_df = pd.read_parquet(
+    f"{REPO_ROOT}/src/feature_repo/data/batch_predictions.parquet",
+    columns=["date", "predicted_pm25", 'days_before_forecast_day'],
+)
+preds_df = monitoring_df[monitoring_df.days_before_forecast_day == 1]
+outcome_df = air_quality_df[["event_timestamp", "pm25"]].rename(
+    columns={"event_timestamp": "date"}
+)
+
+print(preds_df)
+print(outcome_df)
+
+hindcast_df = pd.merge(preds_df, outcome_df, on='date').sort_values('date')
+print(hindcast_df)
