@@ -23,7 +23,7 @@ entity_df = entity_df.rename(columns={"date": "event_timestamp"})
 
 air_quality_df = (
     store.get_historical_features(
-        entity_df=entity_df, features=[f'{air_quality_fv.name}:pm25']
+        entity_df=entity_df, features=[f"{air_quality_fv.name}:pm25"]
     )
     .to_df()
     .sort_values(by="event_timestamp")
