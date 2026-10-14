@@ -14,6 +14,8 @@ import pandas as pd
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 
+pd.set_option("display.max_columns", None)
+
 feature_service_name = "pm25_regression"
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -28,9 +30,8 @@ store = FeatureStore(
     fs_yaml_file=Path(f"{REPO_ROOT}/src/feature_repo/feature_store.yaml"),
 )
 
+
 feast.mlflow.init(store=store)
-
-
 
 feast.mlflow.autolog()
 
@@ -95,4 +96,8 @@ with store.mlflow.start_run("inference"):
         days_before_forecast_day=range(1, len(batch_inference_df) + 1),
     )
 
-    print(batch_inference_df)
+    save_path = f"{REPO_ROOT}/src/feature_repo/data/batch_monitoring.parquet"
+    if Path(save_path).exists():
+        store.write_to_offline_store("monitoring_fv", df=batch_inference_df)
+    else:
+        batch_inference_df.to_parquet(save_path)

@@ -14,8 +14,30 @@ from feast.types import Float32, Float64
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-
 feature_service_name = "pm25_regression"
+country_entity = Entity(
+    name="country",
+    join_keys=["country"],
+    value_type=ValueType.STRING,
+)
+
+city_entity = Entity(
+    name="city",
+    join_keys=["city"],
+    value_type=ValueType.STRING,
+)
+
+street_entity = Entity(
+    name="street",
+    join_keys=["street"],
+    value_type=ValueType.STRING,
+)
+
+days_before_forecast_entiy = Entity(
+    name="days_before_forecast_day",
+    join_keys=["days_before_forecast_day"],
+    value_type=ValueType.STRING,
+)
 
 air_quality_data_source = FileSource(
     path=f"{REPO_ROOT}/src/feature_repo/data/cleaned_historical_sensor_data.parquet",
@@ -33,22 +55,11 @@ weather_data_source = FileSource(
     file_format=ParquetFormat(),
 )
 
-country_entity = Entity(
-    name="country",
-    join_keys=["country"],
-    value_type=ValueType.STRING,
-)
-
-city_entity = Entity(
-    name="city",
-    join_keys=["city"],
-    value_type=ValueType.STRING,
-)
-
-street_entity = Entity(
-    name="street",
-    join_keys=["street"],
-    value_type=ValueType.STRING,
+monitoring_data_source = FileSource(
+    path=f"{REPO_ROOT}/src/feature_repo/data/batch_monitoring.parquet",
+    name="monitoring_data",
+    timestamp_field="date",
+    file_format=ParquetFormat(),
 )
 
 air_quality_feature_view = FeatureView(
@@ -80,10 +91,32 @@ weather_feature_view = FeatureView(
 )
 
 
+monitoring_feature_view = FeatureView(
+    name="monitoring_fv",
+    source=monitoring_data_source,
+    schema=[
+        Field(name=i, dtype=Float32)
+        for i in [
+            "temperature_2m_mean",
+            "precipitation_sum",
+            "wind_speed_10m_max",
+            "wind_direction_10m_dominant",
+        ]
+    ]
+    + [
+        Field(name="pm25", dtype=Float64),
+    ],
+    entities=[country_entity, city_entity, street_entity, days_before_forecast_entiy],
+    offline=True,
+    enable_validation=True,
+)
+
 pm25_feature_service = FeatureService(
     name=feature_service_name,
     features=[air_quality_feature_view, weather_feature_view],
 )
+
+# monitoring_feature_service =
 
 store = FeatureStore(
     repo_path=f"{REPO_ROOT}/src/feature_repo",

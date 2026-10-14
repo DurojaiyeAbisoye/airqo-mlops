@@ -1,0 +1,33 @@
+import feast.mlflow
+from feast import FeatureStore
+from pathlib import Path
+from datetime import datetime, timezone, timedelta
+import pandas as pd
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+store = FeatureStore(
+    repo_path=f"{REPO_ROOT}/src/feature_repo/",
+    fs_yaml_file=Path(f"{REPO_ROOT}/src/feature_repo/feature_store.yaml"),
+)
+
+feast.mlflow.init(store=store)
+
+air_quality_fv_name = "air_quality_fv"
+air_quality_fv = store.get_feature_view(air_quality_fv_name)
+
+entity_columns = ["city", "country", "street", "date"]
+entity_df = pd.read_parquet(
+    f"{REPO_ROOT}/src/feature_repo/data/cleaned_historical_sensor_data.parquet"
+)[entity_columns]
+entity_df = entity_df.rename(columns={"date": "event_timestamp"})
+
+air_quality_df = (
+    store.get_historical_features(
+        entity_df=entity_df, features=[f'{air_quality_fv.name}:pm25']
+    )
+    .to_df()
+    .sort_values(by="event_timestamp")
+    .reset_index(drop=True)
+)
+
+print(air_quality_df)
