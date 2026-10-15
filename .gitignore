@@ -15,3 +15,5 @@ images/system_plots
 feast_dbs
 mlartifacts
 catboost_info
+workspace
+metadata.json

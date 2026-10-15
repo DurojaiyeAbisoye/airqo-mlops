@@ -66,7 +66,7 @@ def train_and_evaluate_model(
     model,
 ) -> None:
     with store.mlflow.start_run(nested=True):
-        mlflow_client = store.mlflow.mlflow
+        # feast.mlflow = store.mlflow.mlflow
         historical_df = (
             store.get_historical_features(
                 entity_df=entity_df,
@@ -91,33 +91,40 @@ def train_and_evaluate_model(
         ytrain = train_df[target].ffill()
         yval = val_df[target].ffill()
 
+        model.fit(Xtrain, ytrain)
+        print(f"Fit {model.__class__.__name__}!")
+
         train_dataset_df = pd.concat([Xtrain, ytrain], axis=1)
         val_dataset_df = pd.concat([Xval, yval], axis=1)
-        train_dataset = mlflow_client.data.from_pandas(
+        val_dataset_df["predicted_pm25"] = model.predict(Xval)
+
+        train_dataset_df_path = f"{FEATURE_REPO}/data/train_dataset.parquet"
+        val_dataset_df_path = f"{FEATURE_REPO}/data/val_dataset.parquet"
+
+        train_dataset_df.to_parquet(train_dataset_df_path, index=False)
+        val_dataset_df.to_parquet(val_dataset_df_path, index=False)
+
+        train_dataset = feast.mlflow.data.from_pandas(
             train_dataset_df,
             targets=target[0],
             name="train",
+            source=train_dataset_df_path,
         )
-        val_dataset = mlflow_client.data.from_pandas(
-            val_dataset_df,
-            targets=target[0],
-            name="val",
+        val_dataset = feast.mlflow.data.from_pandas(
+            val_dataset_df, targets=target[0], name="val", source=val_dataset_df_path
         )
-        mlflow_client.log_inputs(
+        feast.mlflow.log_inputs(
             [train_dataset, val_dataset],
             contexts=["training", "validation"],
             tags_list=[None, None],
         )
-
-        model.fit(Xtrain, ytrain)
-        print(f"Fit {model.__class__.__name__}!")
 
         model_params = (
             model.get_all_params()
             if isinstance(model, CatBoostRegressor)
             else model.get_params()
         )
-        mlflow_client.log_params(model_params)
+        feast.mlflow.log_params(model_params)
 
         train_rmse = root_mean_squared_error(ytrain, model.predict(Xtrain))
         val_rmse = root_mean_squared_error(yval, model.predict(Xval))
@@ -128,7 +135,7 @@ def train_and_evaluate_model(
         print(f"\tR2: \n\t\tTrain -> {train_r2: .2f}\n\t\tVal -> {val_r2: .2f}")
         print()
 
-        mlflow_client.log_metrics(
+        feast.mlflow.log_metrics(
             {
                 "train_rmse": train_rmse,
                 "val_rmse": val_rmse,
@@ -139,26 +146,23 @@ def train_and_evaluate_model(
 
         input_example = Xtrain.iloc[[0]]
         output_example = model.predict(input_example)
-        signature = mlflow_client.models.infer_signature(
+        signature = feast.mlflow.models.infer_signature(
             input_example,
             output_example,
         )
         if isinstance(model, CatBoostRegressor):
-            mlflow_client.catboost.log_model(
+            feast.mlflow.catboost.log_model(
                 model,
                 name=MODEL_NAME,
                 input_example=input_example,
                 signature=signature,
             )
-            # Feast's model wrapper does not map the CatBoost flavor yet.
-            feast.mlflow.log_params(model.get_all_params())#_log_required_features()
+            feast.mlflow.log_params(model.get_all_params())
         else:
             flavor = (
                 "xgboost"
                 if isinstance(model, XGBRegressor)
-                else "lightgbm"
-                if isinstance(model, LGBMRegressor)
-                else "sklearn"
+                else "lightgbm" if isinstance(model, LGBMRegressor) else "sklearn"
             )
             if flavor == "sklearn":
                 store.mlflow.log_model(
@@ -187,7 +191,7 @@ def train_and_evaluate_model(
                     signature=signature,
                 )
 
-        mlflow_client.log_dict(
+        feast.mlflow.log_dict(
             {target[0]: float(output_example[0])},
             "examples/output_example.json",
         )
