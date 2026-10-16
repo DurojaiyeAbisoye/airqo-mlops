@@ -5,10 +5,13 @@ from evidently import Report, Dataset, DataDefinition
 from evidently.ui.workspace import RemoteWorkspace, Project
 from evidently.core.datasets import Regression
 from evidently.presets import DataDriftPreset, DataSummaryPreset, RegressionPreset
+from evidently.metrics.data_quality import DatasetCorrelations
 from feast import FeatureStore
 import pandas as pd
 from datetime import datetime, timezone
 import warnings
+
+DatasetCorrelations()
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ENV_PATH = REPO_ROOT / ".env"
@@ -66,7 +69,12 @@ def monitor_drift(reference_df: pd.DataFrame, current_df: pd.DataFrame) -> None:
 
     workspace, project = get_workspace_and_project()
     report = Report(
-        metrics=[DataSummaryPreset(), DataDriftPreset(), RegressionPreset()],
+        metrics=[
+            DataSummaryPreset(),
+            DataDriftPreset(),
+            RegressionPreset(),
+            DatasetCorrelations(),
+        ],
         include_tests=True,
     )
 

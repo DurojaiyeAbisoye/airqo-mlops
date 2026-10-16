@@ -56,7 +56,6 @@ def split_historical_df(
         & (historical_df.event_timestamp <= val_end_date)
     ]
     test_df = historical_df[historical_df.event_timestamp > val_end_date]
-    print(train_df.shape, val_df.shape, test_df.shape)
     return train_df, val_df, test_df
 
 
@@ -66,7 +65,6 @@ def train_and_evaluate_model(
     model,
 ) -> None:
     with store.mlflow.start_run(nested=True):
-        # feast.mlflow = store.mlflow.mlflow
         historical_df = (
             store.get_historical_features(
                 entity_df=entity_df,
@@ -76,15 +74,12 @@ def train_and_evaluate_model(
             .sort_values(by="event_timestamp")
             .reset_index(drop=True)
         )
-        print(f"{historical_df.shape = }")
         train_df, val_df, test_df = split_historical_df(historical_df)
 
         target = ["pm25"]
         features = train_df.drop(
             columns=["city", "country", "street", "event_timestamp"] + target
         ).columns.tolist()
-        print(f"{features = }")
-        print(f"{target = }")
 
         Xtrain = train_df[features]
         Xval = val_df[features]
@@ -96,7 +91,9 @@ def train_and_evaluate_model(
 
         train_dataset_df = pd.concat([Xtrain, ytrain], axis=1)
         val_dataset_df = pd.concat([Xval, yval], axis=1)
-        val_dataset_df["predicted_pm25"] = model.predict(Xval)
+        val_dataset_df["predicted_pm25"] = model.predict(
+            Xval
+        )  # log model predictions on val data
 
         train_dataset_df_path = f"{FEATURE_REPO}/data/train_dataset.parquet"
         val_dataset_df_path = f"{FEATURE_REPO}/data/val_dataset.parquet"
@@ -151,50 +148,32 @@ def train_and_evaluate_model(
             output_example,
         )
         if isinstance(model, CatBoostRegressor):
-            feast.mlflow.catboost.log_model(
+            store.mlflow.mlflow.catboost.log_model(
                 model,
                 name=MODEL_NAME,
-                input_example=input_example,
                 signature=signature,
             )
-            feast.mlflow.log_params(model.get_all_params())
-        else:
-            flavor = (
-                "xgboost"
-                if isinstance(model, XGBRegressor)
-                else "lightgbm" if isinstance(model, LGBMRegressor) else "sklearn"
+        elif isinstance(model, XGBRegressor):
+            feast.mlflow.xgboost.log_model(
+                model,
+                artifact_path=FEATURE_SERVICE_NAME,
+                signature=signature,
             )
-            if flavor == "sklearn":
-                store.mlflow.log_model(
-                    model,
-                    artifact_path=FEATURE_SERVICE_NAME,
-                    flavor=flavor,
-                    input_example=input_example,
-                    signature=signature,
-                    skops_trusted_types=SKLEARN_SKOPS_TRUSTED_TYPES,
-                )
-            elif flavor == "lightgbm":
-                store.mlflow.log_model(
-                    model,
-                    artifact_path=FEATURE_SERVICE_NAME,
-                    flavor=flavor,
-                    input_example=input_example,
-                    signature=signature,
-                    skops_trusted_types=LIGHTGBM_SKOPS_TRUSTED_TYPES,
-                )
-            else:
-                store.mlflow.log_model(
-                    model,
-                    artifact_path=FEATURE_SERVICE_NAME,
-                    flavor=flavor,
-                    input_example=input_example,
-                    signature=signature,
-                )
 
-        feast.mlflow.log_dict(
-            {target[0]: float(output_example[0])},
-            "examples/output_example.json",
-        )
+        elif isinstance(model, LGBMRegressor):
+            feast.mlflow.lightgbm.log_model(
+                model,
+                artifact_path=FEATURE_SERVICE_NAME,
+                signature=signature,
+                skops_trusted_types=LIGHTGBM_SKOPS_TRUSTED_TYPES,
+            )
+        else:
+            feast.mlflow.sklearn.log_model(
+                model,
+                artifact_path=FEATURE_SERVICE_NAME,
+                signature=signature,
+                skops_trusted_types=SKLEARN_SKOPS_TRUSTED_TYPES,
+            )
 
 
 def main() -> None:
@@ -204,13 +183,13 @@ def main() -> None:
     entity_df = load_entity_df()
 
     models = [
-        XGBRegressor(random_state=23),
-        LGBMRegressor(random_state=25),
         RandomForestRegressor(random_state=23),
         HistGradientBoostingRegressor(random_state=23),
+        XGBRegressor(random_state=23),
+        LGBMRegressor(random_state=25),
         CatBoostRegressor(random_seed=23, verbose=False),
     ]
-    run_timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run_timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M%:SZ")
     with store.mlflow.start_run(f"baseline_{run_timestamp}"):
         for model in models:
             train_and_evaluate_model(store, entity_df, model)
