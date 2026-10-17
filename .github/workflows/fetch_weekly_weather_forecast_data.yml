@@ -40,7 +40,7 @@ jobs:
           mkdir -p "$SAVE_DIR"
           START_DATE=$(date -u +%F)
           END_DATE=$(date -u -d "+6 days" +%F)
-          python src/data_pipeline/fetch_weather_data.py \
+          python src/data_pipeline/fetch_forecast_weather_data.py \
             --url "$OPEN_METEO_FORECAST_URL" \
             --start_date "$START_DATE" \
             --end_date "$END_DATE" \

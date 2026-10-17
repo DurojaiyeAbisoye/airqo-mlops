@@ -5,13 +5,13 @@ from evidently import Report, Dataset, DataDefinition
 from evidently.ui.workspace import RemoteWorkspace, Project
 from evidently.core.datasets import Regression
 from evidently.presets import DataDriftPreset, DataSummaryPreset, RegressionPreset
+from evidently.metrics.regression import MeanError
 from evidently.metrics.data_quality import DatasetCorrelations
 from feast import FeatureStore
 import pandas as pd
 from datetime import datetime, timezone
 import warnings
-
-DatasetCorrelations()
+from dashboard import create_dashboard
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ENV_PATH = REPO_ROOT / ".env"
@@ -52,7 +52,7 @@ def fetch_reference_dataset(store: FeatureStore) -> pd.DataFrame:
 
 
 def get_workspace_and_project(
-    workspace_host="http://127.0.0.1:8000/", project_name=FEATURE_SERVICE_NAME
+    workspace_host="http://127.0.0.1:8000", project_name=FEATURE_SERVICE_NAME
 ) -> tuple[RemoteWorkspace, Project]:
 
     workspace = RemoteWorkspace(base_url=workspace_host)
@@ -74,6 +74,7 @@ def monitor_drift(reference_df: pd.DataFrame, current_df: pd.DataFrame) -> None:
             DataDriftPreset(),
             RegressionPreset(),
             DatasetCorrelations(),
+            MeanError(error_plot=False, error_dist=False, error_normality=True),
         ],
         include_tests=True,
     )
@@ -84,6 +85,7 @@ def monitor_drift(reference_df: pd.DataFrame, current_df: pd.DataFrame) -> None:
         "wind_speed_10m_max",
         "wind_direction_10m_dominant",
         "predicted_pm25",
+        "pm25",
     ]
 
     data_definition = DataDefinition(
@@ -104,7 +106,14 @@ def monitor_drift(reference_df: pd.DataFrame, current_df: pd.DataFrame) -> None:
         name=f"{FEATURE_SERVICE_NAME} report",
     )
 
+    run_eval.save_html(
+        filename=f"{REPO_ROOT}/evidently_artifacts/html_reports/report-{datetime.now().strftime('%Y-%m-%d')}.html"
+    )
+    run_eval.save_json(
+        filename=f"{REPO_ROOT}/evidently_artifacts/json_reports/report-{datetime.now().strftime('%Y-%m-%d')}.json"
+    )
     workspace.add_run(project_id=project.id, run=run_eval)
+    create_dashboard(project, FEATURE_SERVICE_NAME)
 
 
 def main() -> None:
