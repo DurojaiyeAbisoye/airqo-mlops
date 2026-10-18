@@ -30,7 +30,7 @@ def create_dashboard(project: Project, title: str):
     ))
     p.add_panel(panel=counter_panel(
         title="Column Count (last)",
-        values=[PanelMetric(metric="ColumnCount")],
+        values=[PanelMetric(metric="ColumnCount", )],
         aggregation="last",
         size="half",
     ))
