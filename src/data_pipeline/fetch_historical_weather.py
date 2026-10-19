@@ -22,7 +22,7 @@ def main() -> None:
     env = os.environ.get
 
     start_date = datetime(year=2026, month=1, day=1)
-    end_date = today#datetime(year=2026, month=10, day=11)
+    end_date = today - timedelta(days=1)
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
