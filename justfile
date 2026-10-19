@@ -10,8 +10,6 @@ start-up:
 	#!/usr/bin/env bash
 	set -euo pipefail
 
-	(cd src/feature_repo && feast apply)
-
 	state_dir=".air_quality_services"
 	mkdir -p "$state_dir"
 
@@ -39,6 +37,8 @@ start-up:
 	}
 
 	start_service mlflow "mlflow ui" mlflow ui
+	(cd src/feature_repo && feast apply)
+
 	start_service evidently "evidently ui" evidently ui
 	start_service feast "feast ui" bash -c 'cd src/feature_repo && exec feast ui'
 
