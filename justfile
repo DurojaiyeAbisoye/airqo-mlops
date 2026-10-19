@@ -76,11 +76,8 @@ shutdown:
 feast-apply: format
 	cd src/feature_repo && feast apply
 
-fetch-hourly-sensor-data: format
-	python src/data_pipeline/fetch_hourly_sensor_data.py
-
-fetch-sensor-data: format
-	python src/data_pipeline/fetch_sensor_data.py
+fetch-daily-sensor-median: format
+	python src/data_pipeline/fetch_daily_sensor_median.py
 
 fetch-lon-lat: format
 	python src/data_pipeline/fetch_lon_lat.py

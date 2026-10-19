@@ -1,8 +1,11 @@
 name: merge-sensor-data
 
 on:
-  schedule:
-    - cron: "57 23 * * *"
+  workflow_run:
+    workflows:
+      - fetch-daily-sensor-median
+    types:
+      - completed
   workflow_dispatch:
 
 permissions:
@@ -10,6 +13,7 @@ permissions:
 
 jobs:
   merge:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     name: merge-sensor-data
     runs-on: ubuntu-latest
     timeout-minutes: 5

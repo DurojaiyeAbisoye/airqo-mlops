@@ -1,8 +1,8 @@
-name: fetch-hourly-sensor-data
+name: fetch-daily-sensor-median
 
 on:
   schedule:
-    - cron: "7,22,37,52 * * * *"
+    - cron: "0 0,6,12,18 * * *"
   workflow_dispatch:
   
 permissions:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   fetch:
-    name: fetch-hourly-sensor-data
+    name: fetch-daily-sensor-median
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -28,18 +28,16 @@ jobs:
 
       - name: Run script
         env:
-          AQICN_URL: ${{ vars.AQICN_URL }}
-          AQICN_TOKEN: ${{ secrets.AQICN_TOKEN }}
           COUNTRY: ${{ vars.COUNTRY }}
           CITY: ${{ vars.CITY }}
           STREET: ${{ vars.STREET }}
           LAT: ${{ vars.LAT }}
           LON: ${{ vars.LON }}
-          SAVE_PATH: ${{ vars.SAVE_PATH }}
+          STATION_ID: ${{ vars.STATION_ID }}
+          SAVE_PATH: ${{ vars.SAVE_PATH || 'src/feature_repo/data/daily_sensor_data.parquet' }}
         run: |
-          python src/data_pipeline/fetch_hourly_sensor_data.py \
-            --sensor-url "$AQICN_URL" \
-            --sensor-token "$AQICN_TOKEN" \
+          python src/data_pipeline/fetch_daily_sensor_median.py \
+            --station-id "$STATION_ID" \
             --country "$COUNTRY" \
             --city "$CITY" \
             --street "$STREET" \
@@ -49,7 +47,7 @@ jobs:
       
       - name: Commit data if changed
         env:
-          SAVE_PATH: ${{ vars.SAVE_PATH }}
+          SAVE_PATH: ${{ vars.SAVE_PATH || 'src/feature_repo/data/daily_sensor_data.parquet' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

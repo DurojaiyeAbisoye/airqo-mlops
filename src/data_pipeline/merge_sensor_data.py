@@ -19,14 +19,14 @@ def merge_sensor_data() -> pd.DataFrame:
 
     daily_sensor_df["day"] = daily_sensor_df["date"].dt.date
 
-    median_today = (
+    median_yesterday = (
         daily_sensor_df.groupby("day")["pm25"]
         .median()
         .to_frame()
         .reset_index()
         .rename(columns={"day": "date"})
     )
-    median_today = median_today.assign(
+    median_yesterday = median_yesterday.assign(
         created_at=datetime.now(timezone.utc),
         country=os.environ.get("COUNTRY"),
         city=os.environ.get("CITY"),
@@ -34,10 +34,10 @@ def merge_sensor_data() -> pd.DataFrame:
         lat=float(os.environ["LAT"]),
         lon=float(os.environ["LON"]),
     )
-    median_today["date"] = pd.to_datetime(median_today["date"], utc=True)
+    median_yesterday["date"] = pd.to_datetime(median_yesterday["date"], utc=True)
     df = pd.concat(
-        [historical_sensor_df, median_today], ignore_index=True
-    ).drop_duplicates(subset=["date"], keep="first")
+        [historical_sensor_df, median_yesterday], ignore_index=True
+    ).drop_duplicates(subset=["date"], keep="last")
 
     df.to_parquet(historical_sensor_df_path)
     return df

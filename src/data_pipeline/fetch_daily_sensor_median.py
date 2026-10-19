@@ -21,7 +21,6 @@ def fetch_yesterdays_sensor_data(
     lat: float,
     lon: float,
     station_id: int = 816424,
-    specie: str = "pm25",
     save_path: str | None = None,
 ) -> None:
     if save_path is None:
@@ -51,10 +50,10 @@ def fetch_yesterdays_sensor_data(
     yesterday = pd.Timestamp.now(tz="UTC").normalize() - pd.Timedelta(1, unit="D")
     url = (
         f"https://airnet.waqi.info/airnet/sse/historic/hourly/"
-        f"{station_id}"
+        f"{station_id}?specie=pm25"
     )
 
-    response = requests.get(url, params={"specie": specie}, timeout=30)
+    response = requests.get(url, timeout=30)
     response.raise_for_status()
 
     hourly_medians = []
@@ -125,7 +124,7 @@ def fetch_yesterdays_sensor_data(
         df = pd.concat([df[columns], yesterday_df], ignore_index=True)
 
     df = (
-        df.drop_duplicates(subset=["date", "pm25"], keep="first")
+        df.drop_duplicates(subset=["date"], keep="last")
         .reset_index(drop=True)
     )
     df.to_parquet(parquet_path, index=False)
@@ -136,7 +135,6 @@ def main() -> None:
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--station-id", type=int, default=816424)
-    parser.add_argument("--specie", default="pm25")
     parser.add_argument("--country", default=os.environ["COUNTRY"])
     parser.add_argument("--city", default=os.environ["CITY"])
     parser.add_argument("--street", default=os.environ["STREET"])
@@ -156,7 +154,6 @@ def main() -> None:
         lat=args.lat,
         lon=args.lon,
         station_id=args.station_id,
-        specie=args.specie,
         save_path=args.save_path,
     )
 
