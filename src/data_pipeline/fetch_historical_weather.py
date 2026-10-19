@@ -22,7 +22,7 @@ def main() -> None:
     env = os.environ.get
 
     start_date = datetime(year=2026, month=1, day=1)
-    end_date = datetime(year=2026, month=10, day=11)
+    end_date = today#datetime(year=2026, month=10, day=11)
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -34,13 +34,13 @@ def main() -> None:
     parser.add_argument(
         "--start_date",
         type=str,
-        default=start_date.isoformat(),
+        default=start_date.strftime('%Y-%m-%d'),
         help="start date to use when fetching data (default: start of the year, UTC)",
     )
     parser.add_argument(
         "--end_date",
         type=str,
-        default=end_date.isoformat(),
+        default=end_date.strftime('%Y-%m-%d'),
         help="end date to use when fetching data (default: today + 6 days)",
     )
     parser.add_argument(

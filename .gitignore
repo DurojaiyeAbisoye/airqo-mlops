@@ -16,5 +16,6 @@ feast_dbs
 mlartifacts
 catboost_info
 workspace
+.air_quality_services
 metadata.json
 test_plotly.py

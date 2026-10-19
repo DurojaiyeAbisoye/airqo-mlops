@@ -131,6 +131,8 @@ def main() -> None:
             "predicted_pm25",
         ],
     )
+    mask = current_df.date
+    currend_df = current_df[curren]
     current_df["pm25"] = current_df["predicted_pm25"] * 1.0103
     monitor_drift(reference_df=reference_df, current_df=current_df)
 

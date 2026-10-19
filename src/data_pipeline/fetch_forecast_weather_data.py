@@ -31,13 +31,13 @@ def main() -> None:
     parser.add_argument(
         "--start_date",
         type=str,
-        default=today.isoformat(),
+        default=today.strftime('%Y-%m-%d'),
         help="start date to use when fetching data (default: today, UTC)",
     )
     parser.add_argument(
         "--end_date",
         type=str,
-        default=(today + timedelta(days=6)).isoformat(),
+        default=(today + timedelta(days=6)).strftime('%Y-%m-%d'),
         help="end date to use when fetching data (default: today + 6 days)",
     )
     parser.add_argument(

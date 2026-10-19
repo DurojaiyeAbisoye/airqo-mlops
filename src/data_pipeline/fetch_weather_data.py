@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 import openmeteo_requests
 import pandas as pd
 
