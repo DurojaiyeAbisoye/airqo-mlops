@@ -105,7 +105,8 @@ monitoring_feature_view = FeatureView(
     ]
     + [
         Field(name="pm25", dtype=Float64),
-    ],
+    ]
+    + [Field(name="predicted_pm25", dtype=Float64)],
     entities=[country_entity, city_entity, street_entity, days_before_forecast_entiy],
     offline=True,
     enable_validation=True,
@@ -116,7 +117,6 @@ pm25_feature_service = FeatureService(
     features=[air_quality_feature_view, weather_feature_view],
 )
 
-# monitoring_feature_service =
 
 store = FeatureStore(
     repo_path=f"{REPO_ROOT}/src/feature_repo",

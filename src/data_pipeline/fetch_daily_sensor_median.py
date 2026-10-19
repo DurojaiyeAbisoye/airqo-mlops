@@ -9,7 +9,6 @@ import pandas as pd
 import requests
 from dotenv import load_dotenv
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ENV_PATH = REPO_ROOT / ".env"
 
@@ -24,9 +23,7 @@ def fetch_yesterdays_sensor_data(
     save_path: str | None = None,
 ) -> None:
     if save_path is None:
-        save_path = str(
-            REPO_ROOT / "src/feature_repo/data/daily_sensor_data.parquet"
-        )
+        save_path = str(REPO_ROOT / "src/feature_repo/data/daily_sensor_data.parquet")
 
     parquet_path = Path(save_path)
     parquet_path.parent.mkdir(parents=True, exist_ok=True)
@@ -123,10 +120,7 @@ def fetch_yesterdays_sensor_data(
     else:
         df = pd.concat([df[columns], yesterday_df], ignore_index=True)
 
-    df = (
-        df.drop_duplicates(subset=["date"], keep="last")
-        .reset_index(drop=True)
-    )
+    df = df.drop_duplicates(subset=["date"], keep="last").reset_index(drop=True)
     df.to_parquet(parquet_path, index=False)
 
 
