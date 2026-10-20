@@ -1,9 +1,10 @@
+import argparse
 import os
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
 from dotenv import load_dotenv
 from fetch_weather_data import fetch_open_meteo_df
-from datetime import datetime, timedelta, timezone
-import argparse
 
 DEFAULT_DAILY_FEATURES = [
     "temperature_2m_mean",

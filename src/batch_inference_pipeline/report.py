@@ -1,17 +1,17 @@
-import os
-import feast.mlflow
-from pathlib import Path
-from evidently import Report, Dataset, DataDefinition
-from evidently.ui.workspace import RemoteWorkspace, Project
-from evidently.core.datasets import Regression
-from evidently.presets import DataDriftPreset, DataSummaryPreset, RegressionPreset
-from evidently.metrics.regression import MeanError
-from evidently.metrics.data_quality import DatasetCorrelations
-from feast import FeatureStore
-import pandas as pd
-from datetime import datetime, timezone
 import warnings
+from datetime import datetime, timezone
+from pathlib import Path
+
+import feast.mlflow
+import pandas as pd
 from dashboard import create_dashboard
+from evidently import DataDefinition, Dataset, Report
+from evidently.core.datasets import Regression
+from evidently.metrics.data_quality import DatasetCorrelations
+from evidently.metrics.regression import MeanError
+from evidently.presets import DataDriftPreset, DataSummaryPreset, RegressionPreset
+from evidently.ui.workspace import Project, RemoteWorkspace
+from feast import FeatureStore
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ENV_PATH = REPO_ROOT / ".env"

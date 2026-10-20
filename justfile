@@ -4,6 +4,8 @@ default:
 	just start-up
 
 format:
+	autoflake --in-place --remove-all-unused-imports --recursive .
+	isort .
 	black .
 
 start-up:
@@ -95,6 +97,9 @@ merge-data: format
 
 train: format merge-data
 	python src/training_pipeline/train.py
+
+tune: format merge-data
+	python src/training_pipeline/tune.py
 
 register-model: format train
 	python src/training_pipeline/register_model.py

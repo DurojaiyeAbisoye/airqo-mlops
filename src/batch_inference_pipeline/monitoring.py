@@ -5,7 +5,6 @@ import feast.mlflow
 import pandas as pd
 from dotenv import load_dotenv
 from feast import FeatureStore
-
 from util import plot_air_quality_forecast
 
 REPO_ROOT = Path(__file__).resolve().parents[2]

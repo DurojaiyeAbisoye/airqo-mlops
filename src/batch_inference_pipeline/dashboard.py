@@ -1,11 +1,11 @@
-from evidently.ui.workspace import Project
 from evidently.sdk.models import PanelMetric
 from evidently.sdk.panels import (
+    counter_panel,
     line_plot_panel,
     pie_plot_panel,
-    counter_panel,
     text_panel,
 )
+from evidently.ui.workspace import Project
 
 
 def create_dashboard(project: Project, title: str):
