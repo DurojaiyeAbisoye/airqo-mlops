@@ -25,6 +25,12 @@ FEATURES = [
 ]
 TARGET = ["pm25"]
 
+LIGHTGBM_SKOPS_TRUSTED_TYPES = [
+    "collections.OrderedDict",
+    "lightgbm.basic.Booster",
+    "lightgbm.sklearn.LGBMRegressor",
+]
+
 
 def create_feature_store() -> FeatureStore:
     store = FeatureStore(
@@ -216,3 +222,37 @@ def tune_objective(
         feast.mlflow.log_metric("best_cv_val_rmse", study.best_value)
         feast.mlflow.log_metric("best_trial", study.best_trial.number)
     return study
+
+
+def log_selected_model(
+    store: FeatureStore,
+    model: XGBRegressor | CatBoostRegressor | LGBMRegressor,
+    model_family: str,
+    features_df: pd.DataFrame,
+) -> None:
+    input_example = features_df.iloc[[0]]
+    output_example = model.predict(input_example)
+    signature = feast.mlflow.models.infer_signature(
+        input_example,
+        output_example,
+    )
+
+    if model_family == "catboost":
+        store.mlflow.mlflow.catboost.log_model(
+            model,
+            name=MODEL_NAME,
+            signature=signature,
+        )
+    elif model_family == "xgboost":
+        feast.mlflow.xgboost.log_model(
+            model,
+            artifact_path=FEATURE_SERVICE_NAME,
+            signature=signature,
+        )
+    else:
+        feast.mlflow.lightgbm.log_model(
+            model,
+            artifact_path=FEATURE_SERVICE_NAME,
+            signature=signature,
+            skops_trusted_types=LIGHTGBM_SKOPS_TRUSTED_TYPES,
+        )

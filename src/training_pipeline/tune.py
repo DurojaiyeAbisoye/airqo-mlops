@@ -2,9 +2,7 @@ from datetime import datetime, timezone
 
 import feast.mlflow
 import numpy as np
-import pandas as pd
 from catboost import CatBoostRegressor
-from feast import FeatureStore
 from lightgbm import LGBMRegressor
 from sklearn.metrics import root_mean_squared_error
 from tune_catboost import catboost_objective
@@ -16,6 +14,7 @@ from util import (
     TARGET,
     build_training_config,
     create_feature_store,
+    log_selected_model,
     load_entity_df,
     load_historical_data,
     make_cv,
@@ -23,55 +22,16 @@ from util import (
 )
 from xgboost import XGBRegressor
 
-MODEL_NAME = FEATURE_SERVICE_NAME
 CV_TEST_SIZE = 30
 CV_GAP = 0
 CV_N_SPLITS = 5
-LIGHTGBM_SKOPS_TRUSTED_TYPES = [
-    "collections.OrderedDict",
-    "lightgbm.basic.Booster",
-    "lightgbm.sklearn.LGBMRegressor",
-]
+
 
 MODEL_FAMILY_CONFIG = {
     "xgboost": xgboost_objective,
     "catboost": catboost_objective,
     "lightgbm": lightgbm_objective,
 }
-
-
-def log_selected_model(
-    store: FeatureStore,
-    model: XGBRegressor | CatBoostRegressor | LGBMRegressor,
-    model_family: str,
-    features_df: pd.DataFrame,
-) -> None:
-    input_example = features_df.iloc[[0]]
-    output_example = model.predict(input_example)
-    signature = feast.mlflow.models.infer_signature(
-        input_example,
-        output_example,
-    )
-
-    if model_family == "catboost":
-        store.mlflow.mlflow.catboost.log_model(
-            model,
-            name=MODEL_NAME,
-            signature=signature,
-        )
-    elif model_family == "xgboost":
-        feast.mlflow.xgboost.log_model(
-            model,
-            artifact_path=FEATURE_SERVICE_NAME,
-            signature=signature,
-        )
-    else:
-        feast.mlflow.lightgbm.log_model(
-            model,
-            artifact_path=FEATURE_SERVICE_NAME,
-            signature=signature,
-            skops_trusted_types=LIGHTGBM_SKOPS_TRUSTED_TYPES,
-        )
 
 
 def main() -> None:
@@ -130,8 +90,7 @@ def main() -> None:
         elif best_model_family == "lightgbm":
             selected_model = LGBMRegressor(
                 **best_params,
-                eval_metric="rmse",
-                verbosity=0,
+                verbosity=-1,
             )
         else:
             raise ValueError(f"Unknown model family: {best_model_family}")
@@ -164,7 +123,12 @@ def main() -> None:
                     **{f"best_{name}": value for name, value in best_params.items()},
                 }
             )
-            feast.mlflow.log_metric("val_rmse", best_cv_val_rmse)
+            feast.mlflow.log_metrics(
+                {
+                    "best_cv_val_rmse": best_cv_val_rmse,
+                    "test_rmse": test_rmse,
+                }
+            )
             log_selected_model(
                 store,
                 selected_model,

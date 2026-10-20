@@ -26,7 +26,7 @@ def lightgbm_objective(
         "reg_alpha": trial.suggest_float("reg_alpha", 1e-8, 10.0, log=True),
         "reg_lambda": trial.suggest_float("reg_lambda", 1e-3, 100.0, log=True),
     }
-    model = LGBMRegressor(**params, eval_metric="rmse", verbosity=0)
+    model = LGBMRegressor(**params, verbosity=-1)
     X = trainval_df[features]
     y = trainval_df[target[0]]
 
