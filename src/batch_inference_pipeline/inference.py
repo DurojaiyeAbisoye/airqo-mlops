@@ -11,7 +11,7 @@ from util import plot_air_quality_forecast
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ENV_PATH = REPO_ROOT / ".env"
 FEATURE_SERVICE_NAME = "pm25_regression"
-MODEL_NAME = f"{FEATURE_SERVICE_NAME} model"
+REGISTERED_MODEL_NAME = f"{FEATURE_SERVICE_NAME} model"
 FEATURE_REPO = REPO_ROOT / "src/feature_repo"
 PREDICTIONS_PATH = FEATURE_REPO / "data/batch_predictions.parquet"
 FORECAST_PLOT_PATH = REPO_ROOT / "images/plots/forecast.png"
@@ -59,16 +59,16 @@ def predict_batch(
     feast.mlflow.set_tracking_uri(store.mlflow._tracking_uri)
 
     model_version = mlflow_client.get_model_version_by_alias(
-        name=MODEL_NAME,
+        name=REGISTERED_MODEL_NAME,
         alias="champion",
     )
     model_uri = mlflow_client.get_model_version_download_uri(
-        name=MODEL_NAME,
+        name=REGISTERED_MODEL_NAME,
         version=model_version.version,
     )
     model = store.mlflow.load_model(model_uri)
     feature_service_name = store.mlflow.resolve_features(
-        f"models:/{MODEL_NAME}/{model_version.aliases[0]}"
+        f"models:/{REGISTERED_MODEL_NAME}/{model_version.aliases[0]}"
     )
 
     inference_entity_df = create_inference_entity_df(country, city, street)

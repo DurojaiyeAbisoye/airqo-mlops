@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import feast.mlflow
@@ -8,6 +8,8 @@ import pandas as pd
 from catboost import CatBoostRegressor
 from feast import FeatureStore
 from lightgbm import LGBMRegressor
+from mlflow.entities.model_registry import ModelVersion
+from mlflow.models.model import ModelInfo
 from sklearn.metrics import r2_score, root_mean_squared_error
 from sklearn.model_selection import TimeSeriesSplit
 from xgboost import XGBRegressor
@@ -16,6 +18,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 FEATURE_REPO = REPO_ROOT / "src/feature_repo"
 FEATURE_SERVICE_NAME = "pm25_regression"
 MODEL_NAME = FEATURE_SERVICE_NAME
+REGISTERED_MODEL_NAME = f"{FEATURE_SERVICE_NAME} model"
+
 ENTITY_COLUMNS = ["city", "country", "street", "date"]
 FEATURES = [
     "temperature_2m_mean",
@@ -23,7 +27,7 @@ FEATURES = [
     "wind_speed_10m_max",
     "wind_direction_10m_dominant",
 ]
-TARGET = ["pm25"]
+TARGET = "pm25"
 
 LIGHTGBM_SKOPS_TRUSTED_TYPES = [
     "collections.OrderedDict",
@@ -79,7 +83,7 @@ def make_cv(test_size: int, gap: int, n_splits: int):
 def build_training_config(
     feature_service_name: str,
     features: list[str],
-    target: list[str],
+    target: str,
     df: pd.DataFrame,
     trainval_df: pd.DataFrame,
     test_df: pd.DataFrame,
@@ -199,7 +203,7 @@ def tune_objective(
     trainval_df: pd.DataFrame,
     cv: TimeSeriesSplit,
     features: list[str],
-    target: list[str],
+    target: str,
 ) -> optuna.study.Study:
     with store.mlflow.start_run(f"hparam-tuning-{model_family}", nested=True):
         sampler = optuna.samplers.TPESampler(seed=101)
@@ -224,12 +228,47 @@ def tune_objective(
     return study
 
 
+def register_model(
+    store: FeatureStore,
+    model_info: ModelInfo,
+    alias: str,
+    model_family: str,
+    val_rmse: float,
+) -> ModelVersion:
+    model_version = store.mlflow.register_model(
+        model_info.model_uri,
+        name=REGISTERED_MODEL_NAME,
+    )
+    print("Model Registered!")
+
+    mlflow_client = feast.mlflow.MlflowClient(store.mlflow._tracking_uri)
+    for key, value in {
+        "model_family": model_family,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "run_id": model_info.run_id,
+        "val_rmse": str(val_rmse),
+    }.items():
+        mlflow_client.set_model_version_tag(
+            name=REGISTERED_MODEL_NAME,
+            version=model_version.version,
+            key=key,
+            value=value,
+        )
+    mlflow_client.set_registered_model_alias(
+        name=REGISTERED_MODEL_NAME,
+        alias=alias,
+        version=model_version.version,
+    )
+    print("model Aliased!")
+    return model_version
+
+
 def log_selected_model(
     store: FeatureStore,
     model: XGBRegressor | CatBoostRegressor | LGBMRegressor,
     model_family: str,
     features_df: pd.DataFrame,
-) -> None:
+) -> ModelInfo:
     input_example = features_df.iloc[[0]]
     output_example = model.predict(input_example)
     signature = feast.mlflow.models.infer_signature(
@@ -238,19 +277,19 @@ def log_selected_model(
     )
 
     if model_family == "catboost":
-        store.mlflow.mlflow.catboost.log_model(
+        return store.mlflow.mlflow.catboost.log_model(
             model,
             name=MODEL_NAME,
             signature=signature,
         )
     elif model_family == "xgboost":
-        feast.mlflow.xgboost.log_model(
+        return feast.mlflow.xgboost.log_model(
             model,
             artifact_path=FEATURE_SERVICE_NAME,
             signature=signature,
         )
     else:
-        feast.mlflow.lightgbm.log_model(
+        return feast.mlflow.lightgbm.log_model(
             model,
             artifact_path=FEATURE_SERVICE_NAME,
             signature=signature,

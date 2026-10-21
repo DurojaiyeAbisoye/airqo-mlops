@@ -1,10 +1,8 @@
 from datetime import datetime, timezone
 
 import feast.mlflow
-import numpy as np
 from catboost import CatBoostRegressor
 from lightgbm import LGBMRegressor
-from sklearn.metrics import root_mean_squared_error
 from tune_catboost import catboost_objective
 from tune_lightgbm import lightgbm_objective
 from tune_xgboost import xgboost_objective
@@ -18,6 +16,7 @@ from util import (
     load_historical_data,
     log_selected_model,
     make_cv,
+    register_model,
     tune_objective,
 )
 from xgboost import XGBRegressor
@@ -99,37 +98,26 @@ def main() -> None:
             f"{best_cv_val_rmse:.4f}"
         )
 
-        with store.mlflow.start_run("Test-eval", nested=True):
-            selected_model.fit(trainval_df[FEATURES], trainval_df[TARGET[0]])
-            test_predictions = np.asarray(selected_model.predict(test_df[FEATURES]))
-            test_rmse = root_mean_squared_error(
-                test_df[TARGET[0]],
-                test_predictions,
+        with store.mlflow.start_run("Log and register Challenger", nested=True):
+            selected_model.fit(trainval_df[FEATURES], trainval_df[TARGET])
+            feast.mlflow.log_dict(
+                {"selected_model_family": best_model_family}, "model_family.json"
             )
-            feast.mlflow.log_params({"selected_model_family": best_model_family})
-            feast.mlflow.log_metrics(
-                {
-                    "best_cv_val_rmse": best_cv_val_rmse,
-                    "test_rmse": test_rmse, 
-                }
-            )
-        print(f"Test RMSE for selected model: {test_rmse:.4f}")
+            feast.mlflow.log_params(best_params)
 
-        with store.mlflow.start_run("Model-Deployment", nested=True): # "selected_model_family": best_model_family,
-            selected_model.fit(df[FEATURES], df[TARGET[0]])
-            feast.mlflow.log_dict({'selected_model_family' : best_model_family}, 'model_family.json')
-            feast.mlflow.log_params(best_params.items())
-            feast.mlflow.log_metrics(
-                {
-                    "best_cv_val_rmse": best_cv_val_rmse,
-                    "test_rmse": test_rmse,
-                }
-            )
-            log_selected_model(
+            feast.mlflow.log_metrics({"best_cv_val_rmse": best_cv_val_rmse})
+            logged_model_info = log_selected_model(
                 store,
                 selected_model,
                 best_model_family,
                 df[FEATURES],
+            )
+            register_model(
+                store,
+                logged_model_info,
+                "challenger",
+                best_model_family,
+                best_cv_val_rmse,
             )
 
 

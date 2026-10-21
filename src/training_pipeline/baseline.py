@@ -60,9 +60,9 @@ def train_and_evaluate_model(
         )
         train_df, test_df = split_historical_df(historical_df)
 
-        target = ["pm25"]
+        target = "pm25"
         features = train_df.drop(
-            columns=["city", "country", "street", "event_timestamp"] + target
+            columns=["city", "country", "street", "event_timestamp"] + [target]
         ).columns.tolist()
 
         Xtrain = train_df[features]
@@ -85,13 +85,13 @@ def train_and_evaluate_model(
 
         train_dataset = feast.mlflow.data.from_pandas(
             train_dataset_df,
-            targets=target[0],
+            targets=target,
             name="train",
             source=train_dataset_df_path,
         )
         test_dataset = feast.mlflow.data.from_pandas(
             test_dataset_df,
-            targets=target[0],
+            targets=target,
             name="test",
             source=test_dataset_df_path,
         )

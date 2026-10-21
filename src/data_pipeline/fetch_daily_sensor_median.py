@@ -39,11 +39,6 @@ def fetch_yesterdays_sensor_data(
         "lon",
     ]
 
-    try:
-        df = pd.read_parquet(parquet_path)
-    except FileNotFoundError:
-        df = pd.DataFrame(columns=columns)
-
     yesterday = pd.Timestamp.now(tz="UTC").normalize() - pd.Timedelta(1, unit="D")
     url = (
         f"https://airnet.waqi.info/airnet/sse/historic/hourly/"
@@ -115,13 +110,7 @@ def fetch_yesterdays_sensor_data(
         columns=columns,
     )
 
-    if df.empty:
-        df = yesterday_df
-    else:
-        df = pd.concat([df[columns], yesterday_df], ignore_index=True)
-
-    df = df.drop_duplicates(subset=["date"], keep="last").reset_index(drop=True)
-    df.to_parquet(parquet_path, index=False)
+    yesterday_df.to_parquet(parquet_path, index=False)
 
 
 def main() -> None:

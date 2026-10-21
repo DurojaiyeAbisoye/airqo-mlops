@@ -12,7 +12,7 @@ def catboost_objective(
     trainval_df: pd.DataFrame,
     cv: TimeSeriesSplit,
     features: list[str],
-    target: list[str],
+    target: str,
 ):
     params = {
         "iterations": trial.suggest_int("iterations", 300, 2000),
@@ -30,7 +30,7 @@ def catboost_objective(
         verbose=False,
     )
     X = trainval_df[features]
-    y = trainval_df[target[0]]
+    y = trainval_df[target]
 
     return tune_cv(
         trial,
