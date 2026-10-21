@@ -9,8 +9,8 @@ from feast import FeatureStore
 from lightgbm import LGBMRegressor
 from sklearn.ensemble import HistGradientBoostingRegressor, RandomForestRegressor
 from sklearn.metrics import r2_score, root_mean_squared_error
+from util import create_feature_store, load_entity_df
 from xgboost import XGBRegressor
-from util import load_entity_df, create_feature_store
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FEATURE_REPO = REPO_ROOT / "src/feature_repo"

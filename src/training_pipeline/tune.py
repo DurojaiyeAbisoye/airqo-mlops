@@ -14,9 +14,9 @@ from util import (
     TARGET,
     build_training_config,
     create_feature_store,
-    log_selected_model,
     load_entity_df,
     load_historical_data,
+    log_selected_model,
     make_cv,
     tune_objective,
 )
@@ -110,19 +110,15 @@ def main() -> None:
             feast.mlflow.log_metrics(
                 {
                     "best_cv_val_rmse": best_cv_val_rmse,
-                    "test_rmse": test_rmse,
+                    "test_rmse": test_rmse, 
                 }
             )
         print(f"Test RMSE for selected model: {test_rmse:.4f}")
 
-        with store.mlflow.start_run("Model-Deployment", nested=True):
+        with store.mlflow.start_run("Model-Deployment", nested=True): # "selected_model_family": best_model_family,
             selected_model.fit(df[FEATURES], df[TARGET[0]])
-            feast.mlflow.log_params(
-                {
-                    "selected_model_family": best_model_family,
-                    **{f"best_{name}": value for name, value in best_params.items()},
-                }
-            )
+            feast.mlflow.log_dict({'selected_model_family' : best_model_family}, 'model_family.json')
+            feast.mlflow.log_params(best_params.items())
             feast.mlflow.log_metrics(
                 {
                     "best_cv_val_rmse": best_cv_val_rmse,
