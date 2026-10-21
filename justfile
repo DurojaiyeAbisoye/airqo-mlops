@@ -90,22 +90,22 @@ fetch-historical-weather: format
 fetch-forecast-weather: format
 	python src/data_pipeline/fetch_forecast_weather_data.py
 
-merge-data: format
+merge-data: format fetch-historical-weather fetch-forecast-weather fetch-daily-sensor-median
 	python src/data_pipeline/merge_sensor_data.py
 	python src/data_pipeline/merge_weather_data.py
 
 
-train: format merge-data
-	python src/training_pipeline/train.py
+baseline: merge-data
+	python src/training_pipeline/baseline.py
 
-tune: format merge-data
+tune:
 	python src/training_pipeline/tune.py
 
-register-model: format train
-	python src/training_pipeline/register_model.py
+promote-model: tune
+	python src/training_pipeline/promote_model.py
 
-inference: format register-model merge-data
+inference:  promote-model
 	python src/batch_inference_pipeline/inference.py
 
-monitor: format inference
+monitor: inference
 	python src/batch_inference_pipeline/monitoring.py && python src/batch_inference_pipeline/report.py

@@ -98,27 +98,26 @@ def main() -> None:
             f"{best_cv_val_rmse:.4f}"
         )
 
-        with store.mlflow.start_run("Log and register Challenger", nested=True):
-            selected_model.fit(trainval_df[FEATURES], trainval_df[TARGET])
-            feast.mlflow.log_dict(
-                {"selected_model_family": best_model_family}, "model_family.json"
-            )
-            feast.mlflow.log_params(best_params)
+        selected_model.fit(trainval_df[FEATURES], trainval_df[TARGET])
+        feast.mlflow.log_dict(
+            {"selected_model_family": best_model_family}, "model_family.json"
+        )
+        feast.mlflow.log_params(best_params)
 
-            feast.mlflow.log_metrics({"best_cv_val_rmse": best_cv_val_rmse})
-            logged_model_info = log_selected_model(
-                store,
-                selected_model,
-                best_model_family,
-                df[FEATURES],
-            )
-            register_model(
-                store,
-                logged_model_info,
-                "challenger",
-                best_model_family,
-                best_cv_val_rmse,
-            )
+        feast.mlflow.log_metrics({"best_cv_val_rmse": best_cv_val_rmse})
+        logged_model_info = log_selected_model(
+            store,
+            selected_model,
+            best_model_family,
+            df[FEATURES],
+        )
+        register_model(
+            store,
+            logged_model_info,
+            "challenger",
+            best_model_family,
+            best_cv_val_rmse,
+        )
 
 
 if __name__ == "__main__":
