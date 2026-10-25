@@ -229,7 +229,7 @@ def tune_objective(
             lambda trial: model_objective_fn(
                 trial, store, trainval_df, cv, features, target
             ),
-            n_trials=10,
+            n_trials=1,
             n_jobs=1,
         )
 
@@ -365,7 +365,7 @@ def promote_challenger(
     model_family = challenger.tags["model_family"]
     val_rmse = float(challenger.tags["val_rmse"])
 
-    champion_model = clone(challenger_model)
+    champion_model = clone(challenger_model) # type: ignore
     champion_model.fit(df[FEATURES], df[TARGET])
 
     model_info = log_selected_model(
@@ -381,7 +381,7 @@ def promote_challenger(
     )
     tag_model_version(
         client,
-        champion,log_s
+        champion,
         {
             **test_window,
             "challenger_name": challenger.name,
