@@ -64,21 +64,7 @@ def predict_batch(
         days_before_forecast_day=range(1, len(batch_inference_df) + 1),
     )
 
-
-def main() -> None:
-    load_dotenv(ENV_PATH, verbose=True)
-    country = os.environ.get("COUNTRY")
-    city = os.environ.get("CITY")
-    street = os.environ.get("STREET")
-    store = create_feature_store()
-
-    run_timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    with store.mlflow.start_run(f"inference_{run_timestamp}"):
-        batch_inference_df = predict_batch(store, country, city, street)
-
-    today = pd.Timestamp.now(tz="UTC").normalize()
-    yesterday = today - pd.Timedelta(days=1)
-
+def save_inference_data(batch_inference_df, today, yesterday):
     # 1) Weekly: just this run's forecast, overwritten every time (no concat)
     batch_inference_df.to_parquet(WEEKLY_PREDICTIONS_PATH, index=False)
 
@@ -117,6 +103,25 @@ def main() -> None:
         predictions_df.loc[predictions_df["date"] == yesterday, "pm25"] = sensor_df["pm25"].iloc[0]
 
     predictions_df.to_parquet(PREDICTIONS_PATH, index=False)
+
+
+
+def main() -> None:
+    load_dotenv(ENV_PATH, verbose=True)
+    country = os.environ.get("COUNTRY")
+    city = os.environ.get("CITY")
+    street = os.environ.get("STREET")
+    store = create_feature_store()
+
+    run_timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    with store.mlflow.start_run(f"inference_{run_timestamp}"):
+        batch_inference_df = predict_batch(store, country, city, street)
+
+    today = pd.Timestamp.now(tz="UTC").normalize()
+    yesterday = today - pd.Timedelta(days=1)
+
+    save_inference_data(batch_inference_df, today, yesterday)
+
 
 
 if __name__ == "__main__":

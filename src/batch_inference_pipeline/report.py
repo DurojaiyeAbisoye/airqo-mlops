@@ -17,8 +17,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 ENV_PATH = REPO_ROOT / ".env"
 FEATURE_REPO = REPO_ROOT / "src/feature_repo"
 FEATURE_SERVICE_NAME = "pm25_regression"
-MODEL_NAME = f"{FEATURE_SERVICE_NAME} model"
-
+CHAMPION_MODEL_NAME = f"{FEATURE_SERVICE_NAME}_champion"
 
 def create_feature_store() -> FeatureStore:
     store = FeatureStore(
@@ -36,7 +35,7 @@ def fetch_reference_dataset(store: FeatureStore) -> pd.DataFrame:
     feast.mlflow.set_tracking_uri(store.mlflow._tracking_uri)
 
     model_version = mlflow_client.get_model_version_by_alias(
-        name=MODEL_NAME,
+        name=CHAMPION_MODEL_NAME,
         alias="champion",
     )
     run_id = model_version.run_id
@@ -122,7 +121,7 @@ def main() -> None:
     store = create_feature_store()
     reference_df = fetch_reference_dataset(store=store)
     current_df = pd.read_parquet(
-        f"{FEATURE_REPO}/data/batch_predictions.parquet",
+        f"{FEATURE_REPO}/data/predictions.parquet",
         columns=[
             "temperature_2m_mean",
             "precipitation_sum",
@@ -131,9 +130,9 @@ def main() -> None:
             "predicted_pm25",
         ],
     )
-    mask = current_df.date
-    currend_df = current_df[curren]
-    current_df["pm25"] = current_df["predicted_pm25"] * 1.0103
+    # today = pd.Timestamp.now(tz="UTC").normalize()
+    # mask = (current_df.date >= start_date) & ()
+    # current_df = current_df[curren]
     monitor_drift(reference_df=reference_df, current_df=current_df)
 
 
