@@ -1,85 +1,59 @@
-from types import ModuleType
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
-import matplotlib.pyplot as plt
+import feast.mlflow
 import pandas as pd
-from matplotlib.patches import Patch
-from matplotlib.ticker import MultipleLocator, ScalarFormatter
+from catboost import CatBoostRegressor
+from feast import FeatureStore
+from lightgbm import LGBMRegressor
+from mlflow.entities.model_registry import ModelVersion
+from xgboost import XGBRegressor
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ENV_PATH = REPO_ROOT / ".env"
+FEATURE_SERVICE_NAME = "pm25_regression"
+REGISTERED_MODEL_NAME = f"{FEATURE_SERVICE_NAME} model"
+FEATURE_REPO = REPO_ROOT / "src/feature_repo"
+PREDICTIONS_PATH = FEATURE_REPO / "data/predictions.parquet"
+WEEKLY_PREDICTIONS_PATH = FEATURE_REPO / "data/batch_predictions.parquet"
+ALLl_PREDICTIONS_PATH = FEATURE_REPO / "data/all_predictions.parquet"
+Regressor = XGBRegressor | CatBoostRegressor | LGBMRegressor
 
 
-def plot_air_quality_forecast(
+def create_feature_store() -> FeatureStore:
+    store = FeatureStore(
+        repo_path=str(FEATURE_REPO),
+        fs_yaml_file=FEATURE_REPO / "feature_store.yaml",
+    )
+    feast.mlflow.init(store=store)
+    feast.mlflow.autolog()
+    return store
+
+
+def create_inference_entity_df(
     country: str | None,
     city: str | None,
     street: str | None,
-    df: pd.DataFrame,
-    file_path: str,
-    hindcast: bool = False,
-) -> ModuleType:
-    _, ax = plt.subplots(figsize=(10, 6))
-    day = pd.to_datetime(df["date"]).dt.date
-    ax.plot(
-        day,
-        df["predicted_pm25"],
-        label="Predicted PM2.5",
-        color="red",
-        linewidth=2,
-        marker="o",
-        markersize=5,
-        markerfacecolor="blue",
+) -> pd.DataFrame:
+    start_date = datetime.now(tz=timezone.utc).date()
+    end_date = start_date + timedelta(days=6)
+    entity_df = pd.DataFrame(
+        {
+            "event_timestamp": pd.date_range(
+                start_date,
+                end_date,
+                freq="1D",
+                name="event_timestamp",
+                normalize=True,
+                tz=timezone.utc,
+            )
+        }
     )
+    return entity_df.assign(country=country, city=city, street=street)
 
-    ax.set_yscale("log")
-    ax.set_yticks([0, 10, 25, 50, 100, 250, 500])
-    ax.get_yaxis().set_major_formatter(ScalarFormatter())
-    ax.set_ylim(bottom=1)
 
-    ax.set_xlabel("Date")
-    ax.set_title(f"PM2.5 Predicted (Logarithmic Scale) for {country} {city}, {street}")
-    ax.set_ylabel("PM2.5")
-
-    colors = ["green", "yellow", "orange", "red", "purple", "darkred"]
-    labels = [
-        "Good",
-        "Moderate",
-        "Unhealthy for Some",
-        "Unhealthy",
-        "Very Unhealthy",
-        "Hazardous",
-    ]
-    ranges = [(0, 49), (50, 99), (100, 149), (150, 199), (200, 299), (300, 500)]
-    for color, (start, end) in zip(colors, ranges):
-        ax.axhspan(start, end, color=color, alpha=0.3)
-
-    patches = [
-        Patch(color=colors[i], label=f"{labels[i]}: {ranges[i][0]}-{ranges[i][1]}")
-        for i in range(len(colors))
-    ]
-    legend1 = ax.legend(
-        handles=patches,
-        loc="upper right",
-        title="Air Quality Categories",
-        fontsize="x-small",
+def load_model(store, client, model_version: ModelVersion) -> Regressor:
+    model_uri = client.get_model_version_download_uri(
+        model_version.name, model_version.version
     )
-
-    if len(df.index) > 11:
-        every_x_tick = len(df.index) / 10
-        ax.xaxis.set_major_locator(MultipleLocator(every_x_tick))
-
-    plt.xticks(rotation=45)
-
-    if hindcast:
-        ax.plot(
-            day,
-            df["pm25"],
-            label="Actual PM2.5",
-            color="black",
-            linewidth=2,
-            marker="^",
-            markersize=5,
-            markerfacecolor="grey",
-        )
-        ax.legend(loc="upper left", fontsize="x-small")
-        ax.add_artist(legend1)
-
-    plt.tight_layout()
-    plt.savefig(file_path)
-    return plt
+    return store.mlflow.load_model(model_uri).get_raw_model()

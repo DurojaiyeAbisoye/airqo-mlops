@@ -67,8 +67,8 @@ def train_and_evaluate_model(
 
         Xtrain = train_df[features]
         Xtest = test_df[features]
-        ytrain = train_df[target].ffill()
-        ytest = test_df[target].ffill()
+        ytrain = train_df[target]
+        ytest = test_df[target]
 
         model.fit(Xtrain, ytrain)
         print(f"Fit {model.__class__.__name__}!")

@@ -31,7 +31,7 @@ PREVIOUS_ALIAS = "previous"
 
 TEST_WINDOW_DAYS = 14
 MIN_REL_IMPROVEMENT = 0.0
-N_TRIALS = 190
+N_TRIALS = 30
 
 ENTITY_COLUMNS = ["city", "country", "street", "date"]
 FEATURES = [
@@ -428,7 +428,7 @@ def compare_and_promote(
             "champion_test_rmse": str(champion_rmse),
             "rmse_diff": str(rmse_diff),
             "rel_improvement": str(rel_improvement),
-        }
+        },
     )
     if not promote:
         tag_model_version(
