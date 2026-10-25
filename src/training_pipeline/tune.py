@@ -3,8 +3,6 @@ from datetime import datetime, timezone
 import feast.mlflow
 from catboost import CatBoostRegressor
 from lightgbm import LGBMRegressor
-from xgboost import XGBRegressor
-
 from tune_catboost import catboost_objective
 from tune_lightgbm import lightgbm_objective
 from tune_xgboost import xgboost_objective
@@ -29,6 +27,7 @@ from util import (
     register_model,
     tune_objective,
 )
+from xgboost import XGBRegressor
 
 CV_TEST_SIZE = 30
 CV_GAP = 0
@@ -49,6 +48,8 @@ def main() -> None:
 
     with store.mlflow.start_run(f"Training-{run_timestamp}"):
         df, trainval_df, test_df = load_historical_data(store, entity_df)
+        store.mlflow.log_training_dataset(df, "full_df")
+        store.mlflow.log_training_dataset(trainval_df, "trainval_df")
         test_window = {
             "test_window_start": test_df["event_timestamp"].min().isoformat(),
             "test_window_end": test_df["event_timestamp"].max().isoformat(),
@@ -120,7 +121,7 @@ def main() -> None:
             {"best_cv_val_rmse": best_cv_val_rmse, "test_rmse": challenger_rmse}
         )
 
-        challenger_model_info = log_selected_model(
+        challenger_logged_model = log_selected_model(
             store,
             selected_model,
             CHALLENGER_MODEL_NAME,
@@ -129,8 +130,8 @@ def main() -> None:
         )
         challenger = register_model(
             store,
-            challenger_model_info,
             CHALLENGER_MODEL_NAME,
+            challenger_logged_model.model_uri,
             CHALLENGER_ALIAS,
             best_model_family,
             best_cv_val_rmse,

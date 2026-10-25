@@ -8,9 +8,9 @@ import pandas as pd
 from catboost import CatBoostRegressor
 from feast import FeatureStore
 from lightgbm import LGBMRegressor
+from mlflow.entities.logged_model import LoggedModel
 from mlflow.entities.model_registry import ModelVersion
 from mlflow.exceptions import MlflowException
-from mlflow.models.model import ModelInfo
 from sklearn.base import clone
 from sklearn.metrics import r2_score, root_mean_squared_error
 from sklearn.model_selection import TimeSeriesSplit
@@ -29,8 +29,9 @@ CHALLENGER_ALIAS = "challenger"
 CHAMPION_ALIAS = "champion"
 PREVIOUS_ALIAS = "previous"
 
-TEST_WINDOW_DAYS = 14  # held-out test window; equals the biweekly retrain interval
-MIN_REL_IMPROVEMENT = 0.0  # challenger must beat champion RMSE by MORE than this fraction
+TEST_WINDOW_DAYS = 14
+MIN_REL_IMPROVEMENT = 0.0
+N_TRIALS = 190
 
 ENTITY_COLUMNS = ["city", "country", "street", "date"]
 FEATURES = [
@@ -134,79 +135,43 @@ def tune_cv(
     y: pd.Series,
 ) -> float:
     with store.mlflow.start_run(f"optuna trial {trial.number}", nested=True):
-        model_params = model.get_params()
-        feast.mlflow.log_params(model_params)
+        feast.mlflow.log_params(model.get_params())
 
-        train_rmse_scores = []
-        val_rmse_scores = []
-        train_r2_scores = []
-        val_r2_scores = []
-
+        folds = []
         for fold, (train_idx, val_idx) in enumerate(cv.split(X, y)):
-            with store.mlflow.start_run(f"Fold: {fold + 1}", nested=True):
-                Xtrain = X.iloc[train_idx]
-                Xval = X.iloc[val_idx]
-                ytrain = y.iloc[train_idx]
-                yval = y.iloc[val_idx]
+            Xtrain, Xval = X.iloc[train_idx], X.iloc[val_idx]
+            ytrain, yval = y.iloc[train_idx], y.iloc[val_idx]
 
-                model.fit(Xtrain, ytrain)
+            model.fit(Xtrain, ytrain)
+            ytrain_pred = np.asarray(model.predict(Xtrain))
+            yval_pred = np.asarray(model.predict(Xval))
 
-                ytrain_pred = np.asarray(model.predict(Xtrain))
-                yval_pred = np.asarray(model.predict(Xval))
-
-                rmse_train = root_mean_squared_error(ytrain, ytrain_pred)
-                rmse_val = root_mean_squared_error(yval, yval_pred)
-
-                r2_train = r2_score(ytrain, ytrain_pred)
-                r2_val = r2_score(yval, yval_pred)
-
-                train_rmse_scores.append(rmse_train)
-                val_rmse_scores.append(rmse_val)
-
-                train_r2_scores.append(r2_train)
-                val_r2_scores.append(r2_val)
-
-                print(
-                    f"Fold {fold + 1}/{cv.get_n_splits()} | "
-                    f"Train RMSE: {rmse_train:.4f} | "
-                    f"Validation RMSE: {rmse_val:.4f} | "
-                    f"Train R2: {r2_train:.4f} | "
-                    f"Val R2: {r2_val:.4f}"
-                )
-
-                feast.mlflow.log_metrics(
-                    {
-                        "Train RMSE": rmse_train,
-                        "Train R2": r2_train,
-                        "Val RMSE": rmse_val,
-                        "Val R2": r2_val,
-                    }
-                )
-                trial.report(rmse_val, step=fold)
-                if trial.should_prune():
-                    raise optuna.TrialPruned()
-
-        train_rmse_mean = np.mean(train_rmse_scores)
-        val_rmse_mean = np.mean(val_rmse_scores)
-
-        train_r2_mean = np.mean(train_r2_scores)
-        val_r2_mean = np.mean(val_r2_scores)
-
-        print(
-            f"CV mean | Train RMSE: {train_rmse_mean:.4f} | "
-            f"Validation RMSE: {val_rmse_mean:.4f} | "
-            f"Train R2: {train_r2_mean:.4f} | "
-            f"Val R2: {val_r2_mean:.4f}"
-        )
-        feast.mlflow.log_metrics(
-            {
-                "Mean Train RMSE": train_rmse_mean,
-                "Mean Train R2": train_r2_mean,
-                "Mean Val RMSE": val_rmse_mean,
-                "Mean Val R2": val_r2_mean,
+            scores = {
+                "Train RMSE": root_mean_squared_error(ytrain, ytrain_pred),
+                "Train R2": r2_score(ytrain, ytrain_pred),
+                "Val RMSE": root_mean_squared_error(yval, yval_pred),
+                "Val R2": r2_score(yval, yval_pred),
             }
+            folds.append(scores)
+            feast.mlflow.log_metrics(scores, step=fold)
+            print(
+                f"Fold {fold + 1}/{cv.get_n_splits()} | "
+                + " | ".join(f"{k}: {v:.4f}" for k, v in scores.items())
+            )
+
+            trial.report(scores["Val RMSE"], step=fold)
+            if trial.should_prune():
+                raise optuna.TrialPruned()
+
+        results = pd.DataFrame(folds)
+        means, stds = results.mean(), results.std()
+        feast.mlflow.log_metrics(
+            {f"Mean {k}": v for k, v in means.items()}
+            | {"Std Val RMSE": stds["Val RMSE"]}
         )
-        return val_rmse_mean
+        feast.mlflow.log_dict(results.to_dict(orient="list"), "fold_scores.json")
+        print("CV mean | " + " | ".join(f"{k}: {v:.4f}" for k, v in means.items()))
+        return float(means["Val RMSE"])
 
 
 def tune_objective(
@@ -229,7 +194,7 @@ def tune_objective(
             lambda trial: model_objective_fn(
                 trial, store, trainval_df, cv, features, target
             ),
-            n_trials=1,
+            n_trials=N_TRIALS,
             n_jobs=1,
         )
 
@@ -247,57 +212,54 @@ def log_selected_model(
     model_name: str,
     model_family: str,
     features_df: pd.DataFrame,
-) -> ModelInfo:
+) -> LoggedModel:
     input_example = features_df.iloc[[0]]
-    output_example = model.predict(input_example)
     signature = feast.mlflow.models.infer_signature(
-        input_example,
-        output_example,
+        input_example, model.predict(input_example)
     )
 
     if model_family == "catboost":
-        return feast.mlflow.catboost.log_model(
-            model,
-            name=model_name,
-            signature=signature,
-        )
+        feast.mlflow.catboost.log_model(model, name=model_name, signature=signature)
+        store.mlflow._log_required_features()
     elif model_family == "xgboost":
-        return feast.mlflow.xgboost.log_model(
-            model,
-            name=model_name,
-            signature=signature,
-        )
+        store.mlflow.log_model(model, model_name, flavor="xgboost", signature=signature)
     else:
-        return feast.mlflow.lightgbm.log_model(
+        store.mlflow.log_model(
             model,
-            name=model_name,
+            model_name,
+            flavor="lightgbm",
             signature=signature,
             skops_trusted_types=LIGHTGBM_SKOPS_TRUSTED_TYPES,
         )
 
+    logged_model = feast.mlflow.last_logged_model()
+    if logged_model is None:
+        raise RuntimeError(f"No logged model found after logging {model_name}.")
+    return logged_model
+
 
 def register_model(
     store: FeatureStore,
-    model_info: ModelInfo,
     model_name: str,
+    model_uri: str,
     alias: str,
     model_family: str,
     val_rmse: float,
 ) -> ModelVersion:
-    model_version = store.mlflow.register_model(
-        model_info.model_uri,
-        name=model_name,
-    )
+    model_version = store.mlflow.register_model(model_uri, name=model_name)
     print("Model Registered!")
 
     mlflow_client = feast.mlflow.MlflowClient(store.mlflow._tracking_uri)
-    for key, value in {
+    tags = {
         "model_family": model_family,
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "run_id": model_info.run_id,
         "val_rmse": str(val_rmse),
         "feast.feature_service": FEATURE_SERVICE_NAME,
-    }.items():
+    }
+    run_id = store.mlflow.active_run_id
+    if run_id:
+        tags["run_id"] = run_id
+    for key, value in tags.items():
         mlflow_client.set_model_version_tag(
             name=model_name,
             version=model_version.version,
@@ -310,7 +272,6 @@ def register_model(
         version=model_version.version,
     )
     print("Model Aliased!")
-    # Return a fresh copy so the tags and alias set above are visible on the object.
     return mlflow_client.get_model_version(model_name, model_version.version)
 
 
@@ -340,7 +301,7 @@ def tag_model_version(
             model_version.name,
             model_version.version,
             key,
-            value,
+            str(value),
         )
 
 
@@ -365,16 +326,16 @@ def promote_challenger(
     model_family = challenger.tags["model_family"]
     val_rmse = float(challenger.tags["val_rmse"])
 
-    champion_model = clone(challenger_model) # type: ignore
+    champion_model = clone(challenger_model)  # type: ignore
     champion_model.fit(df[FEATURES], df[TARGET])
 
-    model_info = log_selected_model(
+    champion_logged_model = log_selected_model(
         store, champion_model, CHAMPION_MODEL_NAME, model_family, df[FEATURES]
     )
     champion = register_model(
         store,
-        model_info,
         CHAMPION_MODEL_NAME,
+        champion_logged_model.model_uri,
         CHAMPION_ALIAS,
         model_family,
         val_rmse,
@@ -387,7 +348,7 @@ def promote_challenger(
             "challenger_name": challenger.name,
             "challenger_version": challenger.version,
             "challenger_run_id": challenger.tags["run_id"],
-            "expected_test_rmse": str(challenger_rmse),
+            "challenger_test_rmse": str(challenger_rmse),
             "promotion_decision": "promoted",
             "promotion_reason": reason,
         },
@@ -397,7 +358,7 @@ def promote_challenger(
         challenger,
         {
             **test_window,
-            "test_rmse": str(challenger_rmse),
+            "challenger_test_rmse": str(challenger_rmse),
             "champion_version": champion.version,
             "promotion_decision": "promoted",
             "promotion_reason": reason,
@@ -444,27 +405,37 @@ def compare_and_promote(
     not_promoted_reason = (
         f"Challenger did not beat the champion by more than {MIN_REL_IMPROVEMENT:.1%}."
     )
+    scores = {
+        **test_window,
+        "champion_test_rmse": str(champion_rmse),
+        "challenger_test_rmse": str(challenger_rmse),
+    }
     tag_model_version(
         client,
         champion,
         {
-            **test_window,
-            "test_rmse": str(champion_rmse),
-            "promotion_decision": "demoted" if promote else "retained",
-            "promotion_reason": (
+            "last_gate_window_start": test_window["test_window_start"],
+            "last_gate_window_end": test_window["test_window_end"],
+            "last_gate_champion_rmse": str(champion_rmse),
+            "last_gate_challenger_rmse": str(challenger_rmse),
+            "last_gate_challenger_version": challenger.version,
+            "last_gate_decision": "demoted" if promote else "retained",
+            "last_gate_reason": (
                 f"Demoted by challenger version {challenger.version}."
                 if promote
                 else f"Retained: {not_promoted_reason}"
             ),
-        },
+            "champion_test_rmse": str(champion_rmse),
+            "rmse_diff": str(rmse_diff),
+            "rel_improvement": str(rel_improvement),
+        }
     )
     if not promote:
         tag_model_version(
             client,
             challenger,
             {
-                **test_window,
-                "test_rmse": str(challenger_rmse),
+                **scores,
                 "promotion_decision": "not_promoted",
                 "promotion_reason": not_promoted_reason,
             },
@@ -482,7 +453,5 @@ def compare_and_promote(
         test_window,
         reason=f"Promoted: challenger RMSE was {rel_improvement:.1%} lower than champion RMSE.",
     )
-    client.set_registered_model_alias(
-        champion.name, PREVIOUS_ALIAS, champion.version
-    )
+    client.set_registered_model_alias(champion.name, PREVIOUS_ALIAS, champion.version)
     return new_champion
