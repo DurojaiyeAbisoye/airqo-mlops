@@ -27,8 +27,9 @@ FEATURES = [
     "wind_direction_10m_dominant",
     "predicted_pm25",
 ]
+
 TARGET = "pm25"
-COLUMNS = ENTITY_COLUMNS + FEATURES + [TARGET] 
+COLUMNS = ENTITY_COLUMNS + FEATURES + [TARGET]
 
 
 # fetch reference dataset
@@ -76,25 +77,20 @@ def monitor_drift(reference_df: pd.DataFrame, current_df: pd.DataFrame) -> None:
         include_tests=True,
     )
 
-    numerical_features = [
-        "temperature_2m_mean",
-        "precipitation_sum",
-        "wind_speed_10m_max",
-        "wind_direction_10m_dominant",
-        "predicted_pm25",
-        "pm25",
-    ]
+    columns = FEATURES + [TARGET]
 
     data_definition = DataDefinition(
         id_column=None,
-        numerical_columns=numerical_features,
+        numerical_columns=columns,
         regression=[Regression(target="pm25", prediction="predicted_pm25")],
     )
 
     reference_data = Dataset.from_pandas(
-        data=reference_df, data_definition=data_definition
+        data=reference_df[columns], data_definition=data_definition
     )
-    current_data = Dataset.from_pandas(data=current_df, data_definition=data_definition)
+    current_data = Dataset.from_pandas(
+        data=current_df[columns], data_definition=data_definition
+    )
 
     run_eval = report.run(
         current_data=current_data,
@@ -116,18 +112,20 @@ def main() -> None:
 
     warnings.filterwarnings("ignore")
     store = create_feature_store()
-    
+
     reference_df = fetch_reference_dataset(store=store)[COLUMNS]
     current_df = pd.read_parquet(
         f"{FEATURE_REPO}/data/predictions.parquet", columns=COLUMNS
     )
-    
+
     latest_actual_date = current_df.dropna(subset=["pm25"])["date"].max()
     cutoff = latest_actual_date - pd.Timedelta(days=14)
-    
-    current_df = current_df[(current_df.date > cutoff) & (current_df.date <= latest_actual_date)]
+
+    current_df = current_df[
+        (current_df.date > cutoff) & (current_df.date <= latest_actual_date)
+    ]
     current_df = current_df.dropna(subset=["pm25"])
-    
+
     monitor_drift(reference_df=reference_df, current_df=current_df)
 
 

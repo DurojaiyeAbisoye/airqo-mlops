@@ -121,9 +121,7 @@ def main() -> None:
 
         reference_dataset_path = FEATURE_REPO / "data/reference_dataset.parquet"
         test_df.to_parquet(reference_dataset_path, index=False)
-        feast.mlflow.log_artifact(
-            reference_dataset_path, artifact_path="datasets"
-        )
+        feast.mlflow.log_artifact(reference_dataset_path, artifact_path="datasets")
 
         feast.mlflow.log_dict(
             {"selected_model_family": best_model_family}, "model_family.json"

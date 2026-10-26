@@ -36,9 +36,7 @@ def split_historical_df(
 
     train_df = historical_df[historical_df.date <= test_start_date]
     test_df = historical_df[
-        historical_df.date.between(
-            test_start_date, test_end_date, inclusive="right"
-        )
+        historical_df.date.between(test_start_date, test_end_date, inclusive="right")
     ]
     return train_df, test_df
 

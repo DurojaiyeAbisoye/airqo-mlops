@@ -1,6 +1,8 @@
-name: monitoring
+name: report
 
 on:
+  schedule: 
+  - cron: '37 7 * * 1'
   workflow_run:
     workflows:
       - merge-sensor-data
@@ -14,9 +16,9 @@ permissions:
   contents: write
 
 jobs:
-  monitoring:
+  report:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
-    name: monitoring
+    name: report
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -35,12 +37,12 @@ jobs:
       - name: Apply Feast feature definitions
         run: cd src/feature_repo && feast apply
 
-      - name: Run monitoring
+      - name: Run report
         env:
           COUNTRY: ${{ vars.COUNTRY }}
           CITY: ${{ vars.CITY }}
           STREET: ${{ vars.STREET }}
-        run: python src/batch_inference_pipeline/monitoring.py
+        run: python src/batch_inference_pipeline/report.py
 
       - name: Commit hindcast plot if changed
         run: |
@@ -50,6 +52,6 @@ jobs:
             git add -- images/plots/hindcast.png
           fi
           git diff --cached --quiet && exit 0
-          git commit -m "monitoring: $(date -u +%FT%TZ)"
+          git commit -m "report: $(date -u +%FT%TZ)"
           git pull --rebase
           git push
