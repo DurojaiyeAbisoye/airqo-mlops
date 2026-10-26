@@ -1,15 +1,8 @@
 name: report
 
 on:
-  schedule: 
-  - cron: '37 7 * * 1'
-  workflow_run:
-    workflows:
-      - merge-sensor-data
-    types:
-      - completed
-    branches:
-      - master
+  schedule:
+    - cron: '37 7 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -17,7 +10,6 @@ permissions:
 
 jobs:
   report:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     name: report
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -32,7 +24,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r requirements.txt -r src/feature_repo/requirements.txt matplotlib
+        run: pip install -r requirements.txt -r src/feature_repo/requirements.txt
 
       - name: Apply Feast feature definitions
         run: cd src/feature_repo && feast apply
@@ -44,13 +36,11 @@ jobs:
           STREET: ${{ vars.STREET }}
         run: python src/batch_inference_pipeline/report.py
 
-      - name: Commit hindcast plot if changed
+      - name: Commit Evidently artifacts if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ -f images/plots/hindcast.png ]; then
-            git add -- images/plots/hindcast.png
-          fi
+          git add -- evidently_artifacts/
           git diff --cached --quiet && exit 0
           git commit -m "report: $(date -u +%FT%TZ)"
           git pull --rebase
