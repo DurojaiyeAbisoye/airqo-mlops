@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import feast.mlflow
 from catboost import CatBoostRegressor
 from lightgbm import LGBMRegressor
+from sklearn.metrics import root_mean_squared_error
 from tune_catboost import catboost_objective
 from tune_lightgbm import lightgbm_objective
 from tune_xgboost import xgboost_objective
@@ -11,11 +12,11 @@ from util import (
     CHALLENGER_MODEL_NAME,
     CHAMPION_ALIAS,
     CHAMPION_MODEL_NAME,
+    FEATURE_REPO,
     FEATURE_SERVICE_NAME,
     FEATURES,
     TARGET,
     build_training_config,
-    calculate_test_rmse,
     compare_and_promote,
     create_feature_store,
     get_model_version,
@@ -48,11 +49,12 @@ def main() -> None:
 
     with store.mlflow.start_run(f"Training-{run_timestamp}"):
         df, trainval_df, test_df = load_historical_data(store, entity_df)
-        store.mlflow.log_training_dataset(df, "full_df")
-        store.mlflow.log_training_dataset(trainval_df, "trainval_df")
+        # store.mlflow.log_training_dataset(df, "full_df")
+        # store.mlflow.log_training_dataset(trainval_df, "trainval_df")
+        # store.mlflow.log_training_dataset(test_df, 'test_df')
         test_window = {
-            "test_window_start": test_df["event_timestamp"].min().isoformat(),
-            "test_window_end": test_df["event_timestamp"].max().isoformat(),
+            "test_window_start": test_df["date"].min().isoformat(),
+            "test_window_end": test_df["date"].max().isoformat(),
         }
         cv = make_cv(
             test_size=CV_TEST_SIZE,
@@ -112,7 +114,17 @@ def main() -> None:
 
         # The challenger is fit on train+val only, so the test window stays unseen.
         selected_model.fit(trainval_df[FEATURES], trainval_df[TARGET])
-        challenger_rmse = calculate_test_rmse(selected_model, test_df=test_df)
+        test_df["predicted_pm25"] = selected_model.predict(test_df[FEATURES])  # type: ignore
+        challenger_rmse = root_mean_squared_error(
+            test_df[TARGET], test_df["predicted_pm25"]
+        )
+
+        reference_dataset_path = FEATURE_REPO / "data/reference_dataset.parquet"
+        test_df.to_parquet(reference_dataset_path, index=False)
+        feast.mlflow.log_artifact(
+            reference_dataset_path, artifact_path="datasets"
+        )
+
         feast.mlflow.log_dict(
             {"selected_model_family": best_model_family}, "model_family.json"
         )

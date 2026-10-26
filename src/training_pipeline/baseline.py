@@ -31,12 +31,12 @@ LIGHTGBM_SKOPS_TRUSTED_TYPES = [
 def split_historical_df(
     historical_df: pd.DataFrame,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    test_end_date = historical_df["event_timestamp"].max()
+    test_end_date = historical_df["date"].max()
     test_start_date = test_end_date - timedelta(days=30)
 
-    train_df = historical_df[historical_df.event_timestamp <= test_start_date]
+    train_df = historical_df[historical_df.date <= test_start_date]
     test_df = historical_df[
-        historical_df.event_timestamp.between(
+        historical_df.date.between(
             test_start_date, test_end_date, inclusive="right"
         )
     ]
@@ -55,14 +55,14 @@ def train_and_evaluate_model(
                 features=store.get_feature_service(FEATURE_SERVICE_NAME),
             )
             .to_df()
-            .sort_values(by="event_timestamp")
+            .sort_values(by="date")
             .reset_index(drop=True)
         )
         train_df, test_df = split_historical_df(historical_df)
 
         target = "pm25"
         features = train_df.drop(
-            columns=["city", "country", "street", "event_timestamp"] + [target]
+            columns=["city", "country", "street", "date"] + [target]
         ).columns.tolist()
 
         Xtrain = train_df[features]

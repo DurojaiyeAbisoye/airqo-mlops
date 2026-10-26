@@ -62,7 +62,7 @@ def load_entity_df() -> pd.DataFrame:
     entity_df = pd.read_parquet(
         FEATURE_REPO / "data/cleaned_historical_sensor_data.parquet"
     )[ENTITY_COLUMNS]
-    return entity_df.rename(columns={"date": "event_timestamp"})
+    return entity_df#.rename(columns={"date": "date"})
 
 
 def load_historical_data(
@@ -75,16 +75,17 @@ def load_historical_data(
             filter_by_created_timestamp=True,
         )
         .to_df()
-        .sort_values("event_timestamp")
+        #.sort_values("date")
+        .sort_values("date")
         .reset_index(drop=True)
     )
 
-    test_end_date = df.event_timestamp.max()
+    test_end_date = df.date.max()
     test_start_date = test_end_date - timedelta(days=TEST_WINDOW_DAYS)
 
-    trainval_df = df[df.event_timestamp <= test_start_date]
+    trainval_df = df[df.date <= test_start_date]
     test_df = df[
-        df.event_timestamp.between(test_start_date, test_end_date, inclusive="right")
+        df.date.between(test_start_date, test_end_date, inclusive="right")
     ]
     return df, trainval_df, test_df
 
@@ -110,10 +111,10 @@ def build_training_config(
         "target": target,
         "metric": "rmse",
         "data": {
-            "trainval_start": df["event_timestamp"].min().isoformat(),
-            "trainval_end": trainval_df["event_timestamp"].max().isoformat(),
-            "test_start": test_df["event_timestamp"].min().isoformat(),
-            "test_end": test_df["event_timestamp"].max().isoformat(),
+            "trainval_start": df["date"].min().isoformat(),
+            "trainval_end": trainval_df["date"].max().isoformat(),
+            "test_start": test_df["date"].min().isoformat(),
+            "test_end": test_df["date"].max().isoformat(),
         },
         "cv": {
             "splitter": type(tscv).__name__,

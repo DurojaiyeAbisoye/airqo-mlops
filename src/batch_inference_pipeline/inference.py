@@ -16,9 +16,15 @@ FEATURE_SERVICE_NAME = "pm25_regression"
 FEATURE_REPO = REPO_ROOT / "src/feature_repo"
 CHAMPION_MODEL_NAME = f"{FEATURE_SERVICE_NAME}_champion"
 
-PREDICTIONS_PATH = FEATURE_REPO / "data/predictions.parquet"               # daily targets + ground truth, grows
-WEEKLY_PREDICTIONS_PATH = FEATURE_REPO / "data/batch_predictions.parquet"  # this week's forecast, overwritten
-ALL_PREDICTIONS_PATH = FEATURE_REPO / "data/all_predictions.parquet"       # every day's full forecast, grows
+PREDICTIONS_PATH = (
+    FEATURE_REPO / "data/predictions.parquet"
+)  # daily targets + ground truth, grows
+WEEKLY_PREDICTIONS_PATH = (
+    FEATURE_REPO / "data/batch_predictions.parquet"
+)  # this week's forecast, overwritten
+ALL_PREDICTIONS_PATH = (
+    FEATURE_REPO / "data/all_predictions.parquet"
+)  # every day's full forecast, grows
 
 
 def predict_batch(
@@ -50,19 +56,20 @@ def predict_batch(
             features=store.get_feature_service(feature_service_name),
         )
         .to_df()
-        .sort_values(by="event_timestamp")
+        .sort_values(by="date")
         .reset_index(drop=True)
-        .drop(columns=["city", "country", "street", "event_timestamp", "pm25"])
+        .drop(columns=["city", "country", "street", "date", "pm25"])
     )
 
     batch_inference_df["predicted_pm25"] = model.predict(batch_inference_df)
-    batch_inference_df["date"] = inference_entity_df["event_timestamp"]
+    batch_inference_df["date"] = inference_entity_df["date"]
     return batch_inference_df.assign(
         country=country,
         city=city,
         street=street,
         days_before_forecast_day=range(1, len(batch_inference_df) + 1),
     )
+
 
 def save_inference_data(batch_inference_df, today, yesterday):
     # 1) Weekly: just this run's forecast, overwritten every time (no concat)
@@ -100,10 +107,11 @@ def save_inference_data(batch_inference_df, today, yesterday):
     if sensor_df.empty or pd.isna(sensor_df["pm25"].iloc[0]):
         print("No sensor pm25 yet, skipping backfill")
     else:
-        predictions_df.loc[predictions_df["date"] == yesterday, "pm25"] = sensor_df["pm25"].iloc[0]
+        predictions_df.loc[predictions_df["date"] == yesterday, "pm25"] = sensor_df[
+            "pm25"
+        ].iloc[0]
 
     predictions_df.to_parquet(PREDICTIONS_PATH, index=False)
-
 
 
 def main() -> None:
@@ -121,7 +129,6 @@ def main() -> None:
     yesterday = today - pd.Timedelta(days=1)
 
     save_inference_data(batch_inference_df, today, yesterday)
-
 
 
 if __name__ == "__main__":

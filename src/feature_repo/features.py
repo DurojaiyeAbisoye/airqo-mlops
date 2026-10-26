@@ -56,7 +56,7 @@ weather_data_source = FileSource(
 )
 
 monitoring_data_source = FileSource(
-    path=f"{REPO_ROOT}/src/feature_repo/data/batch_predictions.parquet",
+    path=f"{REPO_ROOT}/src/feature_repo/data/predictions.parquet",
     name="monitoring_data",
     timestamp_field="date",
     file_format=ParquetFormat(),

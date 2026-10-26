@@ -39,11 +39,11 @@ def create_inference_entity_df(
     end_date = start_date + timedelta(days=6)
     entity_df = pd.DataFrame(
         {
-            "event_timestamp": pd.date_range(
+            "date": pd.date_range(
                 start_date,
                 end_date,
                 freq="1D",
-                name="event_timestamp",
+                name="date",
                 normalize=True,
                 tz=timezone.utc,
             )

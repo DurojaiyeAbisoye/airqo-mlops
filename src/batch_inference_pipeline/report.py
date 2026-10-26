@@ -4,7 +4,6 @@ from pathlib import Path
 
 import feast.mlflow
 import pandas as pd
-from dashboard import create_dashboard
 from evidently import DataDefinition, Dataset, Report
 from evidently.core.datasets import Regression
 from evidently.metrics.data_quality import DatasetCorrelations
@@ -12,6 +11,7 @@ from evidently.metrics.regression import MeanError
 from evidently.presets import DataDriftPreset, DataSummaryPreset, RegressionPreset
 from evidently.ui.workspace import Project, RemoteWorkspace
 from feast import FeatureStore
+from util import create_feature_store
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ENV_PATH = REPO_ROOT / ".env"
@@ -19,13 +19,16 @@ FEATURE_REPO = REPO_ROOT / "src/feature_repo"
 FEATURE_SERVICE_NAME = "pm25_regression"
 CHAMPION_MODEL_NAME = f"{FEATURE_SERVICE_NAME}_champion"
 
-def create_feature_store() -> FeatureStore:
-    store = FeatureStore(
-        repo_path=str(FEATURE_REPO),
-        fs_yaml_file=FEATURE_REPO / "feature_store.yaml",
-    )
-    feast.mlflow.init(store=store)
-    return store
+ENTITY_COLUMNS = ["city", "country", "street", "date"]
+FEATURES = [
+    "temperature_2m_mean",
+    "precipitation_sum",
+    "wind_speed_10m_max",
+    "wind_direction_10m_dominant",
+    "predicted_pm25",
+]
+TARGET = "pm25"
+COLUMNS = ENTITY_COLUMNS + FEATURES + [TARGET] 
 
 
 # fetch reference dataset
@@ -39,15 +42,10 @@ def fetch_reference_dataset(store: FeatureStore) -> pd.DataFrame:
         alias="champion",
     )
     run_id = model_version.run_id
-    run = feast.mlflow.get_run(run_id=run_id)
-
-    input_datasets = run.inputs.dataset_inputs
-    for dataset_input in input_datasets:
-        dataset = dataset_input.dataset
-        if dataset.name == "val":
-            dataset_source = feast.mlflow.data.get_source(dataset).load()
-            reference_df = pd.read_parquet(dataset_source)
-    return reference_df  # type: ignore
+    local_path = mlflow_client.download_artifacts(
+        run_id, "datasets/reference_dataset.parquet"
+    )
+    return pd.read_parquet(local_path)
 
 
 def get_workspace_and_project(
@@ -112,27 +110,24 @@ def monitor_drift(reference_df: pd.DataFrame, current_df: pd.DataFrame) -> None:
         filename=f"{REPO_ROOT}/evidently_artifacts/json_reports/report-{datetime.now().strftime('%Y-%m-%d')}.json"
     )
     workspace.add_run(project_id=project.id, run=run_eval)
-    create_dashboard(project, FEATURE_SERVICE_NAME)
 
 
 def main() -> None:
 
     warnings.filterwarnings("ignore")
     store = create_feature_store()
-    reference_df = fetch_reference_dataset(store=store)
+    
+    reference_df = fetch_reference_dataset(store=store)[COLUMNS]
     current_df = pd.read_parquet(
-        f"{FEATURE_REPO}/data/predictions.parquet",
-        columns=[
-            "temperature_2m_mean",
-            "precipitation_sum",
-            "wind_speed_10m_max",
-            "wind_direction_10m_dominant",
-            "predicted_pm25",
-        ],
+        f"{FEATURE_REPO}/data/predictions.parquet", columns=COLUMNS
     )
-    # today = pd.Timestamp.now(tz="UTC").normalize()
-    # mask = (current_df.date >= start_date) & ()
-    # current_df = current_df[curren]
+    
+    latest_actual_date = current_df.dropna(subset=["pm25"])["date"].max()
+    cutoff = latest_actual_date - pd.Timedelta(days=14)
+    
+    current_df = current_df[(current_df.date > cutoff) & (current_df.date <= latest_actual_date)]
+    current_df = current_df.dropna(subset=["pm25"])
+    
     monitor_drift(reference_df=reference_df, current_df=current_df)
 
 
