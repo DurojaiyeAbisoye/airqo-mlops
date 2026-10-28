@@ -1,0 +1,41 @@
+name: monitoring_metrics
+
+on:
+  workflow_run:
+    workflows: ["report"]        # runs after the weekly Evidently report finishes
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  metrics:
+    name: metrics
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Append reports to monitoring_metrics.parquet
+        run: python src/monitoring_pipeline/monitoring_metrics.py
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- src/feature_repo/data/monitoring_metrics.parquet
+          git diff --cached --quiet && exit 0
+          git commit -m "metrics: $(date -u +%FT%TZ)"
+          git pull --rebase
+          git push
