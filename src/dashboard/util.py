@@ -4,7 +4,9 @@ import feast.mlflow
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+import streamlit as st
 from feast import FeatureStore
+from theme import ACCENT, HINDCAST, INK
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ENV_PATH = REPO_ROOT / ".env"
@@ -30,6 +32,7 @@ LINE_WIDTH = 4
 MARKER_SIZE = 10
 
 
+@st.cache_resource
 def create_feature_store() -> FeatureStore:
     store = FeatureStore(
         repo_path=str(FEATURE_REPO),
@@ -40,18 +43,29 @@ def create_feature_store() -> FeatureStore:
     return store
 
 
+@st.cache_data
+def _read_parquet(path: str, modified_at: float) -> pd.DataFrame:
+    return pd.read_parquet(path)
+
+
+def read_parquet_cached(path: Path) -> pd.DataFrame:
+    # the file's modified time is part of the cache key, so the cache
+    # refreshes as soon as the file changes
+    return _read_parquet(str(path), path.stat().st_mtime)
+
+
 def load_entity_df() -> pd.DataFrame:
-    entity_df = pd.read_parquet(
+    return read_parquet_cached(
         FEATURE_REPO / "data/cleaned_historical_sensor_data.parquet"
     )[ENTITY_COLUMNS]
-    return entity_df
 
 
-def load_historical_data(store: FeatureStore, entity_df: pd.DataFrame) -> pd.DataFrame:
+@st.cache_data(ttl=3600)
+def load_historical_data(_store: FeatureStore, entity_df: pd.DataFrame) -> pd.DataFrame:
     return (
-        store.get_historical_features(
+        _store.get_historical_features(
             entity_df=entity_df,
-            features=store.get_feature_service(FEATURE_SERVICE_NAME),
+            features=_store.get_feature_service(FEATURE_SERVICE_NAME),
             filter_by_created_timestamp=True,
         )
         .to_df()
@@ -82,8 +96,8 @@ def build_aqi_forecast_chart(AQI_BANDS, historical_df, forecast_df, hindcast_df)
             x=historical_df.date,
             y=historical_df.pm25,
             mode="lines",
-            name="Historical (true values)",
-            line=dict(color="#111827", width=LINE_WIDTH - 1),
+            name="HISTORICAL (ACTUAL)",
+            line=dict(color=INK, width=LINE_WIDTH - 1),
         )
     )
 
@@ -93,11 +107,11 @@ def build_aqi_forecast_chart(AQI_BANDS, historical_df, forecast_df, hindcast_df)
             x=forecast_df.date,
             y=forecast_df.predicted_pm25,
             mode="lines+markers",
-            name="Next week's forecast",
-            line=dict(color="#1d4ed8", width=LINE_WIDTH, dash="dash"),
+            name="NEXT WEEK'S FORECAST",
+            line=dict(color=ACCENT, width=LINE_WIDTH, dash="dash"),
             marker=dict(
                 size=MARKER_SIZE,
-                color="#1d4ed8",
+                color=ACCENT,
                 line=dict(color="white", width=1.5),
             ),
         )
@@ -109,21 +123,19 @@ def build_aqi_forecast_chart(AQI_BANDS, historical_df, forecast_df, hindcast_df)
             x=hindcast_df.date,
             y=hindcast_df.predicted_pm25,
             mode="lines+markers",
-            name="Hindcast (predicted)",
-            line=dict(color="#c026d3", width=LINE_WIDTH),
+            name="HINDCAST (PREDICTED)",
+            line=dict(color=HINDCAST, width=LINE_WIDTH),
             marker=dict(
                 size=MARKER_SIZE,
-                color="#c026d3",
+                color=HINDCAST,
                 line=dict(color="white", width=1.5),
             ),
         )
     )
 
     line_chart_fig.update_layout(
-        title="PM 2.5: Historical, Hindcast and Forecast",
-        xaxis_title="Date",
+        title="PM 2.5: HISTORICAL, HINDCAST AND FORECAST",
         yaxis_title="PM 2.5 (AQI)",
-        legend_title="Legend",
         hovermode="x unified",
         margin=dict(r=240),  # room for the band labels on the right
     )
@@ -150,11 +162,9 @@ def line_chart(df: pd.DataFrame, column: str, color: str) -> go.Figure:
             name=label,
         )
     )
-    fig.update_layout(
-        title=label,
-        xaxis_title="DATE",
-        yaxis_title=label,
-    )
+    fig.update_layout(title=label)
+    if column.endswith("share"):
+        fig.update_yaxes(tickformat=".0%")
     return fig
 
 
@@ -183,11 +193,7 @@ def mean_std_chart(df: pd.DataFrame, metric_name: str, color: str) -> go.Figure:
             name="STD",
         )
     )
-    fig.update_layout(
-        title=label,
-        xaxis_title="DATE",
-        yaxis_title=label,
-    )
+    fig.update_layout(title=label)
     return fig
 
 

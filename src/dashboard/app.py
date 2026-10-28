@@ -6,6 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 from dotenv import load_dotenv
+from theme import ACCENT, BAD, CATEGORICAL, GOOD, NEUTRAL, apply_theme, donut, show
 from util import (
     build_aqi_forecast_chart,
     create_feature_store,
@@ -14,9 +15,11 @@ from util import (
     load_historical_data,
     make_mock_metrics,
     mean_std_chart,
+    read_parquet_cached,
 )
 
-st.set_page_config(layout="wide")
+st.set_page_config(page_title="PM2.5 regression", layout="wide")
+apply_theme()
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ENV_PATH = REPO_ROOT / ".env"
@@ -31,23 +34,14 @@ ROLLING_WINDOW = 7
 DRIFT_THRESHOLD = 0.5
 DATA_QUALITY_TABLE_ROWS = 10
 
-column_colors = [
-    "#636EFA",  # blue
-    "#EF553B",  # red
-    "#00CC96",  # green
-    "#AB63FA",  # purple
-    "#FFA15A",  # orange
-    "#19D3F3",  # cyan
-]
-
 # AQI categories: (lower, upper, label, color)
 AQI_BANDS = [
-    (0, 50, "Good", "#00e400"),
-    (50, 100, "Moderate", "#ffff00"),
-    (100, 150, "Unhealthy for Sensitive Groups", "#ff7e00"),
-    (150, 200, "Unhealthy", "#ff0000"),
-    (200, 300, "Very Unhealthy", "#8f3f97"),
-    (300, 500, "Hazardous", "#7e0023"),
+    (0, 50, "Good", "#3BAA6B"),
+    (50, 100, "Moderate", "#F2C94C"),
+    (100, 150, "Unhealthy for Sensitive Groups", "#F2994A"),
+    (150, 200, "Unhealthy", "#E5484D"),
+    (200, 300, "Very Unhealthy", "#8E5AB5"),
+    (300, 500, "Hazardous", "#7A2E4D"),
 ]
 
 band_labels = [band[2] for band in AQI_BANDS]
@@ -62,6 +56,9 @@ weather_cols = [
 ]
 target_cols = ["predicted_pm25", "pm25"]
 all_cols = weather_cols + target_cols
+
+# every feature column keeps the same colour in every chart it appears in
+column_colors = dict(zip(all_cols, CATEGORICAL))
 
 regression_text_metrics = [
     "mean_error_mean",
@@ -146,15 +143,15 @@ location_df = pd.DataFrame(
     }
 )
 
-st.title("pm25 regression")
-st.write(REPO_ROOT)
+st.title("PM2.5 regression")
+st.caption("Daily PM2.5 forecast and model monitoring")
 
 store = create_feature_store()
 entity_df = load_entity_df()
 
-historical_df = load_historical_data(store=store, entity_df=entity_df)
-forecast_df = pd.read_parquet(FORECAST_PATH)
-hindcast_df = pd.read_parquet(HINDCAST_PATH)
+historical_df = load_historical_data(_store=store, entity_df=entity_df)
+forecast_df = read_parquet_cached(FORECAST_PATH)
+hindcast_df = read_parquet_cached(HINDCAST_PATH)
 
 html_reports_paths = sorted(
     REPORTS_PATH.glob("*.html"), key=lambda p: p.name, reverse=True
@@ -176,7 +173,7 @@ eval_df["error"] = eval_df.predicted_pm25 - eval_df.pm25
 eval_df["model_ae"] = eval_df.error.abs()
 eval_df["naive_ae"] = (eval_df.pm25 - eval_df.naive_pm25).abs()
 
-metrics_df = pd.read_parquet(METRICS_PATH)
+metrics_df = read_parquet_cached(METRICS_PATH)
 
 metrics_df = make_mock_metrics(
     col_profiles=col_profiles,
@@ -187,7 +184,7 @@ metrics_df = make_mock_metrics(
 )
 
 home, data_summary, data_stats, data_drift, regression, reports = st.tabs(
-    ["home", "data_summary", "data_stats", "data_drift", "regression", "reports"]
+    ["Home", "Data summary", "Data stats", "Data drift", "Regression", "Reports"]
 )
 
 with home:
@@ -201,7 +198,7 @@ with home:
             longitude="longitude",
             latitude="latitude",
             width="stretch",
-            height=330,
+            height="stretch",
         )
 
     with text_column:
@@ -223,30 +220,35 @@ with home:
             )
             st.caption(forecast_df.date.iloc[0].date())
 
-    st.plotly_chart(
-        build_aqi_forecast_chart(AQI_BANDS, historical_df, forecast_df, hindcast_df),
-        width="stretch",
-    )
+        with st.container(border=True, width="stretch"):
+            day_bands = pd.cut(
+                historical_df.pm25,
+                bins=band_edges,
+                labels=band_labels,
+                include_lowest=True,
+            )
+            band_counts = day_bands.value_counts()
+            band_counts = band_counts[band_counts > 0].reindex(band_labels).dropna()
+            show(
+                donut(
+                    labels=band_counts.index,
+                    values=band_counts.values,
+                    colors=[band_colors[label] for label in band_counts.index],
+                    title="DAYS BY AQI BAND",
+                    center_value=f"{band_counts.sum():.0f}",
+                    center_label="days",
+                ),
+                height=380,
+            )
 
     with st.container(border=True, width="stretch"):
-        day_bands = pd.cut(
-            historical_df.pm25,
-            bins=band_edges,
-            labels=band_labels,
-            include_lowest=True,
+        show(
+            build_aqi_forecast_chart(
+                AQI_BANDS, historical_df, forecast_df, hindcast_df
+            ),
+            height=460,
         )
-        band_counts = day_bands.value_counts()
-        band_counts = band_counts[band_counts > 0].reindex(band_labels).dropna()
-        band_fig = go.Figure(
-            go.Pie(
-                labels=list(band_counts.index),
-                values=band_counts.values,
-                marker=dict(colors=[band_colors[label] for label in band_counts.index]),
-                sort=False,
-            )
-        )
-        band_fig.update_layout(title="DAYS BY AQI BAND")
-        st.plotly_chart(band_fig, width="stretch")
+
 
 with data_summary:
     latest = metrics_df.sort_values("report_date").iloc[-1]
@@ -291,18 +293,24 @@ with data_summary:
             if missing_by_column.sum() == 0:
                 st.success("No missing values in the latest report")
             else:
-                st.plotly_chart(
-                    px.pie(
-                        names=missing_by_column.index,
+                show(
+                    donut(
+                        labels=missing_by_column.index,
                         values=missing_by_column.values,
-                        title="Missing values by column",
-                    )
+                        colors=[column_colors[c] for c in missing_by_column.index],
+                        title="MISSING VALUES BY COLUMN",
+                        center_value=f"{missing_by_column.sum():.0f}",
+                        center_label="missing",
+                    ),
+                    height=380,
                 )
 
     with st.container(border=True, width="stretch"):
-        st.plotly_chart(
+        show(
             line_chart(
-                df=metrics_df, column="pm25__missing_share", color=column_colors[1]
+                df=metrics_df,
+                column="pm25__missing_share",
+                color=column_colors["pm25"],
             )
         )
 
@@ -316,25 +324,33 @@ with data_summary:
     )
 
 with data_stats:
-    for i, (col_name, color) in enumerate(zip(all_cols, column_colors)):
+    for i, col_name in enumerate(all_cols):
         if i % PLOTS_PER_ROW == 0:
             row_cols = st.columns(PLOTS_PER_ROW)
 
         with row_cols[i % PLOTS_PER_ROW]:  # type: ignore
             with st.container(border=True, width="stretch"):
-                st.plotly_chart(
-                    mean_std_chart(df=metrics_df, metric_name=col_name, color=color)
+                show(
+                    mean_std_chart(
+                        df=metrics_df,
+                        metric_name=col_name,
+                        color=column_colors[col_name],
+                    )
                 )
 
 with data_drift:
-    for i, (metric_name, color) in enumerate(zip(drift_column_metrics, column_colors)):
+    for i, col_name in enumerate(all_cols):
         if i % PLOTS_PER_ROW == 0:
             row_cols = st.columns(PLOTS_PER_ROW)
 
         with row_cols[i % PLOTS_PER_ROW]:  # type: ignore
             with st.container(border=True, width="stretch"):
-                st.plotly_chart(
-                    line_chart(df=metrics_df, column=metric_name, color=color)
+                show(
+                    line_chart(
+                        df=metrics_df,
+                        column=f"{col_name}__drift",
+                        color=column_colors[col_name],
+                    )
                 )
 
     with st.container(border=True, width="stretch"):
@@ -346,20 +362,18 @@ with data_drift:
                 zmin=0,
                 zmax=1,
                 colorscale=[
-                    [0, "#00CC96"],
-                    [DRIFT_THRESHOLD, "#00CC96"],
-                    [DRIFT_THRESHOLD, "#EF553B"],
-                    [1, "#EF553B"],
+                    [0, GOOD],
+                    [DRIFT_THRESHOLD, GOOD],
+                    [DRIFT_THRESHOLD, BAD],
+                    [1, BAD],
                 ],
                 texttemplate="%{z:.2f}",
+                textfont=dict(color="white", size=11),
                 colorbar=dict(title="DRIFT"),
             )
         )
-        heatmap_fig.update_layout(
-            title=f"DRIFT SCORE (THRESHOLD {DRIFT_THRESHOLD})",
-            xaxis_title="DATE",
-        )
-        st.plotly_chart(heatmap_fig, width="stretch")
+        heatmap_fig.update_layout(title=f"DRIFT SCORE (THRESHOLD {DRIFT_THRESHOLD})")
+        show(heatmap_fig, height=360)
 
     bar_col, drift_pie_col = st.columns([2, 1])
 
@@ -369,28 +383,27 @@ with data_drift:
                 metrics_df,
                 x="report_date",
                 y="drifted_columns_count",
-                color_discrete_sequence=[column_colors[1]],
+                color_discrete_sequence=[BAD],
                 title="DRIFTED COLUMNS",
             )
-            drifted_fig.update_layout(xaxis_title="DATE", yaxis_title="COUNT")
-            st.plotly_chart(drifted_fig, width="stretch")
+            drifted_fig.update_layout(xaxis_title=None, yaxis_title=None)
+            show(drifted_fig, height=380)
 
     with drift_pie_col:
         with st.container(border=True, width="stretch"):
             latest_report = metrics_df.sort_values("report_date").iloc[-1]
             drifted = int(latest_report.drifted_columns_count)
-            drift_fig = go.Figure(
-                go.Pie(
+            show(
+                donut(
                     labels=["Drifted", "Stable"],
                     values=[drifted, len(all_cols) - drifted],
-                    marker=dict(colors=["#EF553B", "#00CC96"]),
-                    sort=False,
-                )
+                    colors=[BAD, GOOD],
+                    title=f"LATEST REPORT ({latest_report.report_date.date()})",
+                    center_value=f"{drifted}/{len(all_cols)}",
+                    center_label="drifted",
+                ),
+                height=380,
             )
-            drift_fig.update_layout(
-                title=f"LATEST REPORT ({latest_report.report_date.date()})"
-            )
-            st.plotly_chart(drift_fig, width="stretch")
 
 with regression:
     cols = st.columns(6)
@@ -423,17 +436,13 @@ with regression:
                 )
                 st.caption(f"latest: {latest_date.date()}")
 
-    for i, (metric_name, color) in enumerate(
-        zip(regression_text_metrics, column_colors)
-    ):
+    for i, metric_name in enumerate(regression_text_metrics):
         if i % PLOTS_PER_ROW == 0:
             row_cols = st.columns(PLOTS_PER_ROW)
 
         with row_cols[i % PLOTS_PER_ROW]:  # type: ignore
             with st.container(border=True, width="stretch"):
-                st.plotly_chart(
-                    line_chart(df=metrics_df, column=metric_name, color=color)
-                )
+                show(line_chart(df=metrics_df, column=metric_name, color=ACCENT))
 
     scatter_col, hist_col = st.columns(2)
 
@@ -449,7 +458,7 @@ with regression:
                     x=eval_df.pm25,
                     y=eval_df.predicted_pm25,
                     mode="markers",
-                    marker=dict(color=column_colors[0]),
+                    marker=dict(color=ACCENT, opacity=0.75),
                     name="DAYS",
                 )
             )
@@ -458,7 +467,7 @@ with regression:
                     x=axis_range,
                     y=axis_range,
                     mode="lines",
-                    line=dict(color="gray", dash="dash"),
+                    line=dict(color=NEUTRAL, dash="dash"),
                     name="Y = X",
                 )
             )
@@ -466,8 +475,9 @@ with regression:
                 title="PREDICTED VS ACTUAL",
                 xaxis_title="ACTUAL PM2.5",
                 yaxis_title="PREDICTED PM2.5",
+                hovermode="closest",
             )
-            st.plotly_chart(scatter_fig)
+            show(scatter_fig, height=360)
 
     with hist_col:
         with st.container(border=True, width="stretch"):
@@ -475,11 +485,11 @@ with regression:
                 eval_df,
                 x="error",
                 nbins=20,
-                color_discrete_sequence=[column_colors[1]],
+                color_discrete_sequence=[ACCENT],
                 title="ERROR DISTRIBUTION (PREDICTED - ACTUAL)",
             )
             hist_fig.update_layout(xaxis_title="ERROR", yaxis_title="DAYS")
-            st.plotly_chart(hist_fig)
+            show(hist_fig, height=360)
 
     with st.container(border=True, width="stretch"):
         rolling_mae = (
@@ -493,7 +503,7 @@ with regression:
                 x=rolling_mae.index,
                 y=rolling_mae.model_ae,
                 mode="lines+markers",
-                line=dict(color=column_colors[0]),
+                line=dict(color=ACCENT),
                 name="MODEL",
             )
         )
@@ -502,16 +512,12 @@ with regression:
                 x=rolling_mae.index,
                 y=rolling_mae.naive_ae,
                 mode="lines+markers",
-                line=dict(color=column_colors[3], dash="dash"),
+                line=dict(color=NEUTRAL, dash="dash"),
                 name="TOMORROW = TODAY",
             )
         )
-        mae_fig.update_layout(
-            title=f"{ROLLING_WINDOW}-DAY ROLLING MAE",
-            xaxis_title="DATE",
-            yaxis_title="MAE",
-        )
-        st.plotly_chart(mae_fig, width="stretch")
+        mae_fig.update_layout(title=f"{ROLLING_WINDOW}-DAY ROLLING MAE")
+        show(mae_fig, height=360)
 
 with reports:
     if not html_reports_paths:
