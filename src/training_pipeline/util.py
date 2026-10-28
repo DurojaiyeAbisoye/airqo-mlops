@@ -62,7 +62,7 @@ def load_entity_df() -> pd.DataFrame:
     entity_df = pd.read_parquet(
         FEATURE_REPO / "data/cleaned_historical_sensor_data.parquet"
     )[ENTITY_COLUMNS]
-    return entity_df  # .rename(columns={"date": "date"})
+    return entity_df
 
 
 def load_historical_data(
@@ -75,7 +75,6 @@ def load_historical_data(
             filter_by_created_timestamp=True,
         )
         .to_df()
-        # .sort_values("date")
         .sort_values("date")
         .reset_index(drop=True)
     )
