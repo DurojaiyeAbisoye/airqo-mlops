@@ -34,7 +34,7 @@ jobs:
           COUNTRY: ${{ vars.COUNTRY }}
           CITY: ${{ vars.CITY }}
           STREET: ${{ vars.STREET }}
-        run: python src/batch_inference_pipeline/report.py
+        run: python src/monitoring/report.py
 
       - name: Commit Evidently artifacts if changed
         run: |
