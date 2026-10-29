@@ -13,7 +13,7 @@ REGISTERED_MODEL_NAME = f"{FEATURE_SERVICE_NAME} model"
 FEATURE_REPO = REPO_ROOT / "src/feature_repo"
 PREDICTIONS_PATH = FEATURE_REPO / "data/predictions.parquet"
 WEEKLY_PREDICTIONS_PATH = FEATURE_REPO / "data/batch_predictions.parquet"
-ALLl_PREDICTIONS_PATH = FEATURE_REPO / "data/all_predictions.parquet"
+ALL_PREDICTIONS_PATH = FEATURE_REPO / "data/all_predictions.parquet"
 Regressor = XGBRegressor | CatBoostRegressor | LGBMRegressor
 
 

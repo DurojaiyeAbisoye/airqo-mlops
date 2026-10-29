@@ -28,7 +28,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Append reports to monitoring_metrics.parquet
-        run: python src/monitoring_pipeline/monitoring_metrics.py
+        run: python src/monitoring_pipeline/monitoring.py
 
       - name: Commit if changed
         run: |

@@ -13,7 +13,6 @@ from util import (
     line_chart,
     load_entity_df,
     load_historical_data,
-    make_mock_metrics,
     mean_std_chart,
     read_parquet_cached,
 )
@@ -31,7 +30,7 @@ REPORTS_PATH = REPO_ROOT / "evidently_artifacts/html_reports"
 
 PLOTS_PER_ROW = 3
 ROLLING_WINDOW = 7
-DRIFT_THRESHOLD = 0.5
+DRIFT_THRESHOLD = 0.05
 DATA_QUALITY_TABLE_ROWS = 10
 
 # AQI categories: (lower, upper, label, color)
@@ -44,9 +43,12 @@ AQI_BANDS = [
     (300, 500, "Hazardous", "#7A2E4D"),
 ]
 
+load_dotenv(ENV_PATH)
+
 band_labels = [band[2] for band in AQI_BANDS]
 band_colors = {band[2]: band[3] for band in AQI_BANDS}
 band_edges = [AQI_BANDS[0][0]] + [band[1] for band in AQI_BANDS]
+
 
 weather_cols = [
     "temperature_2m_mean",
@@ -57,8 +59,6 @@ weather_cols = [
 target_cols = ["predicted_pm25", "pm25"]
 all_cols = weather_cols + target_cols
 
-# every feature column keeps the same colour in every chart it appears in
-column_colors = dict(zip(all_cols, CATEGORICAL))
 
 regression_text_metrics = [
     "mean_error_mean",
@@ -97,9 +97,9 @@ summary_graph_metrics = ["row_count", "missing_share"] + [
 statistics_table_metrics = [
     f"{c}__{s}" for c in all_cols for s in ("min", "max", "mean", "std")
 ]
+
 statistics_graph_metrics = [f"{c}__{s}" for c in all_cols for s in ("mean", "std")]
 
-quantile_metrics = [f"{c}__{q}" for c in all_cols for q in ("q25", "q50", "q75")]
 data_quality_metrics = [
     "duplicated_row_count",
     "duplicated_columns_count",
@@ -111,22 +111,9 @@ data_quality_metrics = [
 ]
 
 drift_column_metrics = [f"{c}__drift" for c in all_cols]
+# every feature column keeps the same colour in every chart it appears in
+column_colors = dict(zip(all_cols, CATEGORICAL))
 
-MOCK_SEED = 42
-MOCK_N = 30
-MOCK_MISSING_SHARE = 0.2
-
-# (typical mean, typical std) per column
-col_profiles = {
-    "temperature_2m_mean": (27.0, 0.8),
-    "precipitation_sum": (9.0, 7.0),
-    "wind_speed_10m_max": (10.5, 2.7),
-    "wind_direction_10m_dominant": (202.0, 35.0),
-    "predicted_pm25": (24.0, 4.0),
-    "pm25": (16.0, 5.0),
-}
-
-load_dotenv(ENV_PATH)
 country = os.environ.get("COUNTRY")
 city = os.environ.get("CITY")
 street = os.environ.get("STREET")
@@ -175,13 +162,6 @@ eval_df["naive_ae"] = (eval_df.pm25 - eval_df.naive_pm25).abs()
 
 metrics_df = read_parquet_cached(METRICS_PATH)
 
-metrics_df = make_mock_metrics(
-    col_profiles=col_profiles,
-    data_quality_metrics=data_quality_metrics,
-    n=MOCK_N,
-    seed=MOCK_SEED,
-    mock_missing_share=MOCK_MISSING_SHARE,
-)
 
 home, data_summary, data_stats, data_drift, regression, reports = st.tabs(
     ["Home", "Data summary", "Data stats", "Data drift", "Regression", "Reports"]
@@ -290,7 +270,7 @@ with data_summary:
             missing_by_column = pd.Series(
                 {c: latest[f"{c}__missing_count"] for c in all_cols}
             )
-            if missing_by_column.sum() == 0:
+            if missing_by_column.sum() == 0:  # type: ignore
                 st.success("No missing values in the latest report")
             else:
                 show(
@@ -299,7 +279,7 @@ with data_summary:
                         values=missing_by_column.values,
                         colors=[column_colors[c] for c in missing_by_column.index],
                         title="MISSING VALUES BY COLUMN",
-                        center_value=f"{missing_by_column.sum():.0f}",
+                        center_value=f"{missing_by_column.sum():.0f}",  # type: ignore
                         center_label="missing",
                     ),
                     height=380,
@@ -362,14 +342,14 @@ with data_drift:
                 zmin=0,
                 zmax=1,
                 colorscale=[
-                    [0, GOOD],
-                    [DRIFT_THRESHOLD, GOOD],
+                    [0, BAD],
                     [DRIFT_THRESHOLD, BAD],
-                    [1, BAD],
+                    [DRIFT_THRESHOLD, GOOD],
+                    [1, GOOD],
                 ],
-                texttemplate="%{z:.2f}",
+                texttemplate="%{z:.3f}",
                 textfont=dict(color="white", size=11),
-                colorbar=dict(title="DRIFT"),
+                colorbar=dict(title="P-VALUE"),
             )
         )
         heatmap_fig.update_layout(title=f"DRIFT SCORE (THRESHOLD {DRIFT_THRESHOLD})")

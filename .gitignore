@@ -19,3 +19,4 @@ workspace
 .air_quality_services
 metadata.json
 test_plotly.py
+justfile

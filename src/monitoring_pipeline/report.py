@@ -9,7 +9,6 @@ from evidently.core.datasets import Regression
 from evidently.metrics.data_quality import DatasetCorrelations
 from evidently.metrics.regression import MeanError
 from evidently.presets import DataDriftPreset, DataSummaryPreset, RegressionPreset
-from evidently.ui.workspace import Project, RemoteWorkspace
 from feast import FeatureStore
 from util import create_feature_store
 
@@ -49,23 +48,8 @@ def fetch_reference_dataset(store: FeatureStore) -> pd.DataFrame:
     return pd.read_parquet(local_path)
 
 
-def get_workspace_and_project(
-    workspace_host="http://127.0.0.1:8000", project_name=FEATURE_SERVICE_NAME
-) -> tuple[RemoteWorkspace, Project]:
-
-    workspace = RemoteWorkspace(base_url=workspace_host)
-    try:
-        project = workspace.search_project(project_name=project_name)[0]
-    except:
-        project = workspace.create_project(
-            name=project_name, description=f"{FEATURE_SERVICE_NAME} monitoring project"
-        )
-    return workspace, project
-
-
 def monitor_drift(reference_df: pd.DataFrame, current_df: pd.DataFrame) -> None:
 
-    workspace, project = get_workspace_and_project()
     report = Report(
         metrics=[
             DataSummaryPreset(),
@@ -105,7 +89,6 @@ def monitor_drift(reference_df: pd.DataFrame, current_df: pd.DataFrame) -> None:
     run_eval.save_json(
         filename=f"{REPO_ROOT}/evidently_artifacts/json_reports/report-{datetime.now().strftime('%Y-%m-%d')}.json"
     )
-    workspace.add_run(project_id=project.id, run=run_eval)
 
 
 def main() -> None:

@@ -62,8 +62,6 @@ def fetch_yesterdays_sensor_data(
 
         payload = json.loads("\n".join(data_lines))
 
-        # Time-series format:
-        # [start_timestamp, [min, max, median, stddev], seconds_to_next, ...]
         if not (
             isinstance(payload, list)
             and payload

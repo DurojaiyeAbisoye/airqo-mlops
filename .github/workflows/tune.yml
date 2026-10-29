@@ -1,0 +1,33 @@
+name: tune
+
+on:
+  schedule:
+    - cron: '37 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  tune:
+    name: tune
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r src/feature_repo/requirements.txt
+
+      - name: Apply Feast feature definitions
+        run: cd src/feature_repo && feast apply
+
+      - name: Run tune
+        run: python src/training_pipeline/tune.py

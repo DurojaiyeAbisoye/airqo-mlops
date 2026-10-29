@@ -107,9 +107,9 @@ def save_inference_data(batch_inference_df, today, yesterday):
     if sensor_df.empty or pd.isna(sensor_df["pm25"].iloc[0]):
         print("No sensor pm25 yet, skipping backfill")
     else:
-        predictions_df.loc[predictions_df["date"] == yesterday, "pm25"] = sensor_df[
-            "pm25"
-        ].iloc[0]
+        sensor_date = sensor_df["date"].iloc[0]
+        sensor_pm25 = sensor_df["pm25"].iloc[0]
+        predictions_df.loc[predictions_df["date"] == sensor_date, "pm25"] = sensor_pm25
 
     predictions_df.to_parquet(PREDICTIONS_PATH, index=False)
 
