@@ -49,9 +49,6 @@ def main() -> None:
 
     with store.mlflow.start_run(f"Training-{run_timestamp}"):
         df, trainval_df, test_df = load_historical_data(store, entity_df)
-        # store.mlflow.log_training_dataset(df, "full_df")
-        # store.mlflow.log_training_dataset(trainval_df, "trainval_df")
-        # store.mlflow.log_training_dataset(test_df, 'test_df')
         test_window = {
             "test_window_start": test_df["date"].min().isoformat(),
             "test_window_end": test_df["date"].max().isoformat(),

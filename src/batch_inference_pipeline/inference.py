@@ -46,7 +46,7 @@ def predict_batch(
     )
     model = store.mlflow.load_model(model_uri).get_raw_model()
     feature_service_name = store.mlflow.resolve_features(
-        f"models:/{CHAMPION_MODEL_NAME}/{model_version.aliases[0]}"
+        f"models:/{CHAMPION_MODEL_NAME}/champion"
     )
 
     inference_entity_df = create_inference_entity_df(country, city, street)
