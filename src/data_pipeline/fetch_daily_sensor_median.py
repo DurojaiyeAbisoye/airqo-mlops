@@ -92,23 +92,27 @@ def fetch_yesterdays_sensor_data(
 
     daily_median = median(hourly_medians) if hourly_medians else float("nan")
 
-    yesterday_df = pd.DataFrame(
-        [
-            {
-                "date": yesterday,
-                "pm25": daily_median,
-                "created_at": pd.Timestamp.now(tz="UTC"),
-                "country": country,
-                "city": city,
-                "street": street,
-                "lat": lat,
-                "lon": lon,
-            }
-        ],
-        columns=columns,
-    )
+    if hourly_medians:
 
-    yesterday_df.to_parquet(parquet_path, index=False)
+        yesterday_df = pd.DataFrame(
+            [
+                {
+                    "date": yesterday,
+                    "pm25": daily_median,
+                    "created_at": pd.Timestamp.now(tz="UTC"),
+                    "country": country,
+                    "city": city,
+                    "street": street,
+                    "lat": lat,
+                    "lon": lon,
+                }
+            ],
+            columns=columns,
+        )
+
+        yesterday_df.to_parquet(parquet_path, index=False)
+    else:
+        print(f"WARNING: no sensor readings for {yesterday.date()}; nothing written.")
 
 
 def main() -> None:
