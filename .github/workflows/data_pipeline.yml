@@ -4,37 +4,40 @@ on:
   schedule:
     - cron: "30 0 * * *"
   workflow_dispatch:
-  
+
 permissions:
   contents: write
 
 jobs:
-  fetch:
+  data:
     name: data-pipeline
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
+    env:
+      SAVE_DIR: src/feature_repo/data
+      FILENAME: weather_forecast
+      SAVE_PATH: ${{ vars.SAVE_PATH || 'src/feature_repo/data/daily_sensor_data.parquet' }}
+      COUNTRY: ${{ vars.COUNTRY }}
+      CITY: ${{ vars.CITY }}
+      STREET: ${{ vars.STREET }}
+      LAT: ${{ vars.LAT }}
+      LON: ${{ vars.LON }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-      
-      - name: Set up python
+
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
           cache: pip
-      
+
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run script
+      - name: Fetch daily sensor data
         env:
-          COUNTRY: ${{ vars.COUNTRY }}
-          CITY: ${{ vars.CITY }}
-          STREET: ${{ vars.STREET }}
-          LAT: ${{ vars.LAT }}
-          LON: ${{ vars.LON }}
           STATION_ID: ${{ vars.STATION_ID }}
-          SAVE_PATH: ${{ vars.SAVE_PATH || 'src/feature_repo/data/daily_sensor_data.parquet' }}
         run: |
           python src/data_pipeline/fetch_daily_sensor_median.py \
             --station-id "$STATION_ID" \
@@ -44,15 +47,37 @@ jobs:
             --lat "$LAT" \
             --lon "$LON" \
             --save-path "$SAVE_PATH"
-      
-      - name: Commit data if changed
+
+      - name: Merge sensor data
+        run: python src/data_pipeline/merge_sensor_data.py
+
+      - name: Fetch weekly weather forecast data
         env:
-          SAVE_PATH: ${{ vars.SAVE_PATH || 'src/feature_repo/data/daily_sensor_data.parquet' }}
+          OPEN_METEO_FORECAST_URL: ${{ vars.OPEN_METEO_FORECAST_URL }}
+        run: |
+          mkdir -p "$SAVE_DIR"
+          START_DATE=$(date -u +%F)
+          END_DATE=$(date -u -d "+6 days" +%F)
+          python src/data_pipeline/fetch_forecast_weather_data.py \
+            --url "$OPEN_METEO_FORECAST_URL" \
+            --start_date "$START_DATE" \
+            --end_date "$END_DATE" \
+            --filename "$FILENAME" \
+            --save_path "$SAVE_DIR"
+
+      - name: Merge weather data
+        run: python src/data_pipeline/merge_weather_data.py
+
+      - name: Commit data if changed
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A "$SAVE_PATH"
+          git add -A "$SAVE_PATH" \
+            "$SAVE_DIR/$FILENAME.parquet" \
+            "$SAVE_DIR/cleaned_historical_sensor_data.parquet" \
+            "$SAVE_DIR/weather_historical.parquet"
           git diff --cached --quiet && exit 0
-          git commit -m "data: sensor $(date -u +%FT%TZ)"
+          git commit -m "data: pipeline $(date -u +%FT%TZ)"
           git pull --rebase
           git push
