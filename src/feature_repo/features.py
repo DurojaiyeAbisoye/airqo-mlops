@@ -14,7 +14,11 @@ from feast.types import Float32, Float64
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-feature_service_name = "pm25_regression"
+
+PROJECT_NAME = "pm25_regression"
+FEATURE_SERVICE_VERSION = 1
+FEATURE_SERVICE_NAME = f"{PROJECT_NAME}_v{FEATURE_SERVICE_VERSION}"
+
 country_entity = Entity(
     name="country",
     join_keys=["country"],
@@ -112,8 +116,14 @@ monitoring_feature_view = FeatureView(
     enable_validation=True,
 )
 
+
 pm25_feature_service = FeatureService(
-    name=feature_service_name,
+    name=PROJECT_NAME,
+    features=[air_quality_feature_view, weather_feature_view],
+)
+
+pm25_feature_service_v1 = FeatureService(
+    name=FEATURE_SERVICE_NAME,
     features=[air_quality_feature_view, weather_feature_view],
 )
 

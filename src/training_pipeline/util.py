@@ -20,7 +20,10 @@ Regressor = XGBRegressor | CatBoostRegressor | LGBMRegressor
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FEATURE_REPO = REPO_ROOT / "src/feature_repo"
-FEATURE_SERVICE_NAME = "pm25_regression"
+
+PROJECT_NAME = "pm25_regression_v1"
+FEATURE_SERVICE_VERSION = 1
+FEATURE_SERVICE_NAME = f"{PROJECT_NAME}_v{FEATURE_SERVICE_VERSION}"
 
 CHAMPION_MODEL_NAME = f"{FEATURE_SERVICE_NAME}_champion"
 CHALLENGER_MODEL_NAME = f"{FEATURE_SERVICE_NAME}_challenger"
