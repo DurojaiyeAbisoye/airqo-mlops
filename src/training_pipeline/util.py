@@ -312,13 +312,6 @@ def tag_model_version(
         )
 
 
-def calculate_test_rmse(model: Regressor, test_df: pd.DataFrame) -> float:
-    return root_mean_squared_error(
-        test_df[TARGET],
-        model.predict(test_df),  # type: ignore
-    )
-
-
 def promote_challenger(
     store,
     client,
@@ -402,6 +395,8 @@ def get_features(store: FeatureStore, feature_service_name: str):
         for f in p.features
         if f.name != TARGET
     ]
+    print("features")
+    print(features)
     return features
 
 
@@ -437,6 +432,11 @@ def compare_and_promote(
             )
         }
     )
+    entity_df = entity_df.assign(
+        city=df.city.unique()[0],
+        country=df.country.unique()[0],
+        street=df.street.unique()[0],
+    )
     champion_test_df = (
         store.get_historical_features(
             entity_df=entity_df,
@@ -445,10 +445,14 @@ def compare_and_promote(
         )
         .to_df()
         .sort_values("date")
-        .reset_index(drop=True)[champion_features]
+        .reset_index(drop=True)[champion_features + [TARGET]]
     )
 
-    champion_rmse = calculate_test_rmse(champion_model, champion_test_df)
+    champion_rmse = root_mean_squared_error(
+        champion_test_df[TARGET],
+        champion_model.predict(champion_test_df[champion_features])
+    )
+    #calculate_test_rmse(champion_model, champion_test_df)
 
     # champion_rmse = calculate_test_rmse(load_model(store, client, champion), test_df)
     rmse_diff = challenger_rmse - champion_rmse
