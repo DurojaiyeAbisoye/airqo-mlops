@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 from datetime import datetime, timezone
 
 import feast.mlflow
@@ -13,7 +14,6 @@ from util import (
     CHAMPION_ALIAS,
     CHAMPION_MODEL_NAME,
     FEATURE_REPO,
-    FEATURE_SERVICE_NAME,
     FEATURES,
     TARGET,
     build_training_config,
@@ -41,14 +41,16 @@ MODEL_FAMILY_CONFIG = {
 }
 
 
-def main() -> None:
+def main(feature_service_name: str) -> None:
     store = create_feature_store()
     entity_df = load_entity_df()
-    run_timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    run_timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     client = feast.mlflow.MlflowClient(store.mlflow._tracking_uri)
 
     with store.mlflow.start_run(f"Training-{run_timestamp}"):
-        df, trainval_df, test_df = load_historical_data(store, entity_df)
+        df, trainval_df, test_df = load_historical_data(
+            store, entity_df, feature_service_name
+        )
         test_window = {
             "test_window_start": test_df["date"].min().isoformat(),
             "test_window_end": test_df["date"].max().isoformat(),
@@ -60,7 +62,7 @@ def main() -> None:
         )
 
         training_config = build_training_config(
-            FEATURE_SERVICE_NAME,
+            feature_service_name,
             FEATURES,
             TARGET,
             df,
@@ -163,13 +165,18 @@ def main() -> None:
                 client,
                 challenger,
                 selected_model,
-                champion,
                 challenger_rmse,
                 df,
-                test_df,
                 test_window,
             )
 
 
 if __name__ == "__main__":
-    main()
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--feature_service_name",
+        default="pm25_regression_v1",
+        help="feature service to sue",
+    )
+    args = parser.parse_args()
+    main(args.feature_service_name)

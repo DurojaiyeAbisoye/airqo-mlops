@@ -13,7 +13,6 @@ from feast import FeatureStore
 from util import create_feature_store
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-ENV_PATH = REPO_ROOT / ".env"
 FEATURE_REPO = REPO_ROOT / "src/feature_repo"
 FEATURE_SERVICE_NAME = "pm25_regression"
 CHAMPION_MODEL_NAME = f"{FEATURE_SERVICE_NAME}_champion"

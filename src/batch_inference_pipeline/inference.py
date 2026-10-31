@@ -6,7 +6,11 @@ import feast.mlflow
 import pandas as pd
 from dotenv import load_dotenv
 from feast import FeatureStore
-from util import create_feature_store, create_inference_entity_df
+from util import (
+    create_feature_store,
+    create_inference_entity_df,
+    fetch_model_and_feature_service_name,
+)
 
 pd.set_option("display.max_columns", None)
 
@@ -36,17 +40,8 @@ def predict_batch(
     mlflow_client = feast.mlflow.MlflowClient(store.mlflow._tracking_uri)
     feast.mlflow.set_tracking_uri(store.mlflow._tracking_uri)
 
-    model_version = mlflow_client.get_model_version_by_alias(
-        name=CHAMPION_MODEL_NAME,
-        alias="champion",
-    )
-    model_uri = mlflow_client.get_model_version_download_uri(
-        name=CHAMPION_MODEL_NAME,
-        version=model_version.version,
-    )
-    model = store.mlflow.load_model(model_uri).get_raw_model()
-    feature_service_name = store.mlflow.resolve_features(
-        f"models:/{CHAMPION_MODEL_NAME}/champion"
+    model, feature_service_name = fetch_model_and_feature_service_name(
+        store, mlflow_client, CHAMPION_MODEL_NAME, "champion"
     )
 
     inference_entity_df = create_inference_entity_df(country, city, street)
@@ -121,7 +116,7 @@ def main() -> None:
     street = os.environ.get("STREET")
     store = create_feature_store()
 
-    run_timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run_timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     with store.mlflow.start_run(f"inference_{run_timestamp}"):
         batch_inference_df = predict_batch(store, country, city, street)
 

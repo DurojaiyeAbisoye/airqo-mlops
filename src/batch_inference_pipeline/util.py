@@ -3,11 +3,7 @@ from pathlib import Path
 
 import feast.mlflow
 import pandas as pd
-from catboost import CatBoostRegressor
 from feast import FeatureStore
-from lightgbm import LGBMRegressor
-from mlflow.entities.model_registry import ModelVersion
-from xgboost import XGBRegressor
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ENV_PATH = REPO_ROOT / ".env"
@@ -20,7 +16,6 @@ FEATURE_REPO = REPO_ROOT / "src/feature_repo"
 PREDICTIONS_PATH = FEATURE_REPO / "data/predictions.parquet"
 WEEKLY_PREDICTIONS_PATH = FEATURE_REPO / "data/batch_predictions.parquet"
 ALL_PREDICTIONS_PATH = FEATURE_REPO / "data/all_predictions.parquet"
-Regressor = XGBRegressor | CatBoostRegressor | LGBMRegressor
 
 
 def create_feature_store() -> FeatureStore:
@@ -53,3 +48,19 @@ def create_inference_entity_df(
         }
     )
     return entity_df.assign(country=country, city=city, street=street)
+
+
+def fetch_model_and_feature_service_name(store, mlflow_client, model_name, alias):
+    model_version = mlflow_client.get_model_version_by_alias(
+        name=model_name,
+        alias=alias,
+    )
+    model_uri = mlflow_client.get_model_version_download_uri(
+        name=model_name,
+        version=model_version.version,
+    )
+    model = store.mlflow.load_model(model_uri).get_raw_model()
+    feature_service_name = store.mlflow.resolve_features(
+        f"models:/{model_name}/{alias}"
+    )
+    return model, feature_service_name

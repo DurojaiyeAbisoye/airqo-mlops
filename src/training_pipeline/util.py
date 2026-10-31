@@ -21,12 +21,9 @@ Regressor = XGBRegressor | CatBoostRegressor | LGBMRegressor
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FEATURE_REPO = REPO_ROOT / "src/feature_repo"
 
-PROJECT_NAME = "pm25_regression_v1"
-FEATURE_SERVICE_VERSION = 1
-FEATURE_SERVICE_NAME = f"{PROJECT_NAME}_v{FEATURE_SERVICE_VERSION}"
-
-CHAMPION_MODEL_NAME = f"{FEATURE_SERVICE_NAME}_champion"
-CHALLENGER_MODEL_NAME = f"{FEATURE_SERVICE_NAME}_challenger"
+PROJECT_NAME = "pm25_regression"
+CHAMPION_MODEL_NAME = f"{PROJECT_NAME}_champion"
+CHALLENGER_MODEL_NAME = f"{PROJECT_NAME}_challenger"
 
 CHALLENGER_ALIAS = "challenger"
 CHAMPION_ALIAS = "champion"
@@ -34,7 +31,7 @@ PREVIOUS_ALIAS = "previous"
 
 TEST_WINDOW_DAYS = 14
 MIN_REL_IMPROVEMENT = 0.0
-N_TRIALS = 30
+N_TRIALS = 3
 
 ENTITY_COLUMNS = ["city", "country", "street", "date"]
 FEATURES = [
@@ -69,12 +66,14 @@ def load_entity_df() -> pd.DataFrame:
 
 
 def load_historical_data(
-    store: FeatureStore, entity_df: pd.DataFrame
+    store: FeatureStore,
+    entity_df: pd.DataFrame,
+    feature_service_name: str,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     df = (
         store.get_historical_features(
             entity_df=entity_df,
-            features=store.get_feature_service(FEATURE_SERVICE_NAME),
+            features=store.get_feature_service(feature_service_name),
             filter_by_created_timestamp=True,
         )
         .to_df()
@@ -248,14 +247,21 @@ def register_model(
     val_rmse: float,
 ) -> ModelVersion:
     model_version = store.mlflow.register_model(model_uri, name=model_name)
-    print("Model Registered!")
-
+    print(f"{model_name} model Registered!")
     mlflow_client = feast.mlflow.MlflowClient(store.mlflow._tracking_uri)
+    mlflow_client.set_registered_model_alias(
+            name=model_name,
+            alias=alias,
+            version=model_version.version,
+        )
+    print(f"{model_name} model Aliased!")
     tags = {
         "model_family": model_family,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "val_rmse": str(val_rmse),
-        "feast.feature_service": FEATURE_SERVICE_NAME,
+        "feast.feature_service": store.mlflow.resolve_features(
+            f"models:/{model_name}/{alias}"
+        ),
     }
     run_id = store.mlflow.active_run_id
     if run_id:
@@ -267,12 +273,12 @@ def register_model(
             key=key,
             value=value,
         )
-    mlflow_client.set_registered_model_alias(
-        name=model_name,
-        alias=alias,
-        version=model_version.version,
-    )
-    print("Model Aliased!")
+    # mlflow_client.set_registered_model_alias(
+    #     name=model_name,
+    #     alias=alias,
+    #     version=model_version.version,
+    # )
+    # print("Model Aliased!")
     return mlflow_client.get_model_version(model_name, model_version.version)
 
 
@@ -309,7 +315,7 @@ def tag_model_version(
 def calculate_test_rmse(model: Regressor, test_df: pd.DataFrame) -> float:
     return root_mean_squared_error(
         test_df[TARGET],
-        model.predict(test_df[FEATURES]),  # type: ignore
+        model.predict(test_df),  # type: ignore
     )
 
 
@@ -372,19 +378,79 @@ def promote_challenger(
     return champion
 
 
+def fetch_model_and_feature_service_name(store, mlflow_client, model_name, alias):
+    model_version = mlflow_client.get_model_version_by_alias(
+        name=model_name,
+        alias=alias,
+    )
+    model_uri = mlflow_client.get_model_version_download_uri(
+        name=model_name,
+        version=model_version.version,
+    )
+    model = store.mlflow.load_model(model_uri).get_raw_model()
+    feature_service_name = store.mlflow.resolve_features(
+        f"models:/{model_name}/{alias}"
+    )
+    return model_version, model, feature_service_name
+
+
+def get_features(store: FeatureStore, feature_service_name: str):
+    feature_service = store.get_feature_service(name=feature_service_name)
+    features = [
+        f.name
+        for p in feature_service.feature_view_projections
+        for f in p.features
+        if f.name != TARGET
+    ]
+    return features
+
+
 def compare_and_promote(
     store,
     client,
     challenger: ModelVersion,
     challenger_model: Regressor,
-    champion: ModelVersion,
     challenger_rmse: float,
     df: pd.DataFrame,
-    test_df: pd.DataFrame,
     test_window: dict[str, str],
 ) -> ModelVersion | None:
     """Score the champion on the test window; promote the challenger only if it wins."""
-    champion_rmse = calculate_test_rmse(load_model(store, client, champion), test_df)
+    # fetch champion
+    champion, champion_model, champion_feature_service_name = (
+        fetch_model_and_feature_service_name(
+            store, client, CHAMPION_MODEL_NAME, CHAMPION_ALIAS
+        )
+    )
+    champion_features = get_features(store, champion_feature_service_name)
+
+    start_date = test_window["test_window_start"]
+    end_date = test_window["test_window_end"]
+    entity_df = pd.DataFrame(
+        {
+            "date": pd.date_range(
+                start_date,
+                end_date,
+                freq="1D",
+                name="date",
+                normalize=True,
+                tz=timezone.utc,
+            )
+        }
+    )
+    champion_test_df = (
+        store.get_historical_features(
+            entity_df=entity_df,
+            features=store.get_feature_service(champion_feature_service_name),
+            filter_by_created_timestamp=True,
+        )
+        .to_df()
+        .sort_values("date")
+        .reset_index(drop=True)[champion_features]
+    )
+
+    champion_rmse = calculate_test_rmse(champion_model, champion_test_df)
+
+    # champion_rmse = calculate_test_rmse(load_model(store, client, champion), test_df)
     rmse_diff = challenger_rmse - champion_rmse
     rel_improvement = (champion_rmse - challenger_rmse) / champion_rmse
     promote = rel_improvement > MIN_REL_IMPROVEMENT
