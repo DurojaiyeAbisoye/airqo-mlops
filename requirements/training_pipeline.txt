@@ -1,0 +1,10 @@
+pandas==2.3.3
+numpy==2.5.3
+pyarrow==25.0.1
+scikit-learn==1.9.1
+xgboost==3.4.1
+lightgbm==4.7.0
+catboost==1.2.10
+optuna==5.0.0
+mlflow==3.16.1
+feast[duckdb,mlflow]==0.66.0

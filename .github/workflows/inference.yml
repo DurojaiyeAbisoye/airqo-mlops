@@ -24,7 +24,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r requirements.txt -r src/feature_repo/requirements.txt matplotlib
+        run: pip install -r requirements/batch_inference_pipeline.txt
 
       - name: Apply Feast feature definitions
         run: cd src/feature_repo && feast apply

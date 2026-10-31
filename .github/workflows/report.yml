@@ -24,7 +24,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r requirements.txt -r src/feature_repo/requirements.txt
+        run: pip install -r requirements/monitoring_pipeline.txt
 
       - name: Apply Feast feature definitions
         run: cd src/feature_repo && feast apply
@@ -34,7 +34,7 @@ jobs:
           COUNTRY: ${{ vars.COUNTRY }}
           CITY: ${{ vars.CITY }}
           STREET: ${{ vars.STREET }}
-        run: python src/monitoring/report.py
+        run: python src/monitoring_pipeline/report.py
 
       - name: Commit Evidently artifacts if changed
         run: |

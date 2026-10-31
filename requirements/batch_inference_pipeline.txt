@@ -1,0 +1,9 @@
+pandas==2.3.3
+pyarrow==25.0.1
+python-dotenv==1.2.4
+mlflow==3.16.1
+feast[duckdb,mlflow]==0.66.0
+xgboost==3.4.1
+lightgbm==4.7.0
+catboost==1.2.10
+scikit-learn==1.9.1

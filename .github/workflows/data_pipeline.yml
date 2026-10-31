@@ -34,7 +34,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements/data_pipeline.txt
 
       - name: Fetch daily sensor data
         env:
@@ -68,6 +68,13 @@ jobs:
 
       - name: Merge weather data
         run: python src/data_pipeline/merge_weather_data.py
+
+      - name: Install feast dependencies
+        run: pip install -r requirements/feature_repo.txt
+
+      - name: Run feast apply
+        run: cd src/feature_repo/ && feast apply
+        
 
       - name: Commit data if changed
         if: always()

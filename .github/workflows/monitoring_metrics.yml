@@ -25,7 +25,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements/monitoring_pipeline.txt
 
       - name: Append reports to monitoring_metrics.parquet
         run: python src/monitoring_pipeline/monitoring.py
