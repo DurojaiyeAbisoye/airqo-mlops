@@ -250,10 +250,10 @@ def register_model(
     print(f"{model_name} model Registered!")
     mlflow_client = feast.mlflow.MlflowClient(store.mlflow._tracking_uri)
     mlflow_client.set_registered_model_alias(
-            name=model_name,
-            alias=alias,
-            version=model_version.version,
-        )
+        name=model_name,
+        alias=alias,
+        version=model_version.version,
+    )
     print(f"{model_name} model Aliased!")
     tags = {
         "model_family": model_family,
